@@ -141,24 +141,26 @@ class _RoleCardFrame extends StatelessWidget {
     return Container(
       width: double.infinity,
       constraints: BoxConstraints(maxWidth: metrics.maxWidth),
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
+            const Color(0xFFFFF7D0),
             displayRole.glowColor,
             displayRole.primaryColor,
-            displayRole.secondaryColor,
           ],
         ),
-        borderRadius: BorderRadius.circular(metrics.radius + 4),
+        borderRadius: BorderRadius.circular(metrics.radius + 6),
         boxShadow: [
           BoxShadow(
             color: displayRole.glowColor.withValues(
-              alpha: 0.34 + glowPulse * 0.2,
+              alpha: 0.42 + glowPulse * 0.22,
             ),
-            blurRadius: 22 + glowPulse * 14,
-            spreadRadius: 1 + glowPulse * 2,
-            offset: const Offset(0, 10),
+            blurRadius: 26 + glowPulse * 16,
+            spreadRadius: 2 + glowPulse * 2,
+            offset: const Offset(0, 12),
           ),
           const BoxShadow(
             color: Color(0x66000000),
@@ -184,6 +186,8 @@ class _RoleCardFrame extends StatelessWidget {
         ),
         child: Column(
           children: [
+            _SecretRoleLabel(role: displayRole, reveal: reveal),
+            SizedBox(height: metrics.gap),
             if (playerUsername != null) ...[
               Text(
                 '@$playerUsername',
@@ -220,6 +224,8 @@ class _RoleCardFrame extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
+            SizedBox(height: metrics.gap * 0.7),
+            _FutureAssetPill(role: displayRole),
             if (showLore && reveal) ...[
               SizedBox(height: metrics.gap),
               Text(
@@ -233,6 +239,81 @@ class _RoleCardFrame extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SecretRoleLabel extends StatelessWidget {
+  const _SecretRoleLabel({required this.role, required this.reveal});
+
+  final RoleData role;
+  final bool reveal;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: reveal
+              ? [role.primaryColor, role.primaryColor.withValues(alpha: 0.82)]
+              : const [Color(0xFF233B7A), Color(0xFF14224E)],
+        ),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFFFF7D0), width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x44351A10),
+            blurRadius: 0,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Text(
+        reveal ? 'Your Secret Role' : 'Secret Role Locked',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _FutureAssetPill extends StatelessWidget {
+  const _FutureAssetPill({required this.role});
+
+  final RoleData role;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFAEC).withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE7C879), width: 1.2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.image_rounded, color: role.primaryColor, size: 14),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              'AI art slot: ${role.futureAssetKey}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF76543C),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -287,6 +368,31 @@ class _RolePortrait extends StatelessWidget {
                   _symbolFor(role),
                   color: Colors.white.withValues(alpha: 0.82),
                   size: 28,
+                ),
+              ),
+              Positioned(
+                left: 14,
+                top: 14,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.28),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.28),
+                    ),
+                  ),
+                  child: const Text(
+                    'Future AI Art',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
               ),
               Positioned(

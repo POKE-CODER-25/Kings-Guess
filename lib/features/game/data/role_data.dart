@@ -65,7 +65,7 @@ class RoleCatalog {
     secondaryColor: Color(0xFFFFE6A0),
     placeholderEmoji: '\u{1F0CF}',
     roleImportance: 0,
-    futureAssetKey: 'characters/unknown/unknown_portrait.png',
+    futureAssetKey: 'assets/characters/unknown/unknown_portrait.png',
     entranceAnimationType: RoleEntranceAnimationType.veilFade,
   );
 
@@ -78,11 +78,11 @@ class RoleCatalog {
           'A dramatic ruler with a strategic eye. The King commands attention, reads the room, and turns suspicion into power.',
       rarityLevel: RoleRarityLevel.legendary,
       glowColor: Color(0xFFFFD35A),
-      primaryColor: Color(0xFFC79118),
-      secondaryColor: Color(0xFF6B2B4D),
+      primaryColor: Color(0xFF9F6B16),
+      secondaryColor: Color(0xFFFFE6A0),
       placeholderEmoji: '\u{1F451}',
       roleImportance: 7,
-      futureAssetKey: 'characters/king/king_portrait.png',
+      futureAssetKey: 'assets/characters/king/king_portrait.png',
       entranceAnimationType: RoleEntranceAnimationType.royalRise,
     ),
     RoleData(
@@ -97,7 +97,7 @@ class RoleCatalog {
       secondaryColor: Color(0xFFFFE0F1),
       placeholderEmoji: '\u{1F478}',
       roleImportance: 6,
-      futureAssetKey: 'characters/queen/queen_portrait.png',
+      futureAssetKey: 'assets/characters/queen/queen_portrait.png',
       entranceAnimationType: RoleEntranceAnimationType.veilFade,
     ),
     RoleData(
@@ -112,7 +112,7 @@ class RoleCatalog {
       secondaryColor: Color(0xFFFFE6A0),
       placeholderEmoji: '\u{1F4DC}',
       roleImportance: 5,
-      futureAssetKey: 'characters/minister/minister_portrait.png',
+      futureAssetKey: 'assets/characters/minister/minister_portrait.png',
       entranceAnimationType: RoleEntranceAnimationType.scrollUnfurl,
     ),
     RoleData(
@@ -127,7 +127,7 @@ class RoleCatalog {
       secondaryColor: Color(0xFFD7E6F8),
       placeholderEmoji: '\u{1F6E1}\u{FE0F}',
       roleImportance: 4,
-      futureAssetKey: 'characters/knight/knight_portrait.png',
+      futureAssetKey: 'assets/characters/knight/knight_portrait.png',
       entranceAnimationType: RoleEntranceAnimationType.shieldClash,
     ),
     RoleData(
@@ -142,7 +142,7 @@ class RoleCatalog {
       secondaryColor: Color(0xFFE4F0C4),
       placeholderEmoji: '\u{2694}\u{FE0F}',
       roleImportance: 3,
-      futureAssetKey: 'characters/soldier/soldier_portrait.png',
+      futureAssetKey: 'assets/characters/soldier/soldier_portrait.png',
       entranceAnimationType: RoleEntranceAnimationType.marchingPulse,
     ),
     RoleData(
@@ -157,7 +157,7 @@ class RoleCatalog {
       secondaryColor: Color(0xFFDCEAFF),
       placeholderEmoji: '\u{1F575}\u{FE0F}',
       roleImportance: 2,
-      futureAssetKey: 'characters/police/police_portrait.png',
+      futureAssetKey: 'assets/characters/police/police_portrait.png',
       entranceAnimationType: RoleEntranceAnimationType.spotlightScan,
     ),
     RoleData(
@@ -172,7 +172,7 @@ class RoleCatalog {
       secondaryColor: Color(0xFFC8A58A),
       placeholderEmoji: '\u{1F5E1}\u{FE0F}',
       roleImportance: 1,
-      futureAssetKey: 'characters/thief/thief_portrait.png',
+      futureAssetKey: 'assets/characters/thief/thief_portrait.png',
       entranceAnimationType: RoleEntranceAnimationType.shadowSlip,
     ),
   ];

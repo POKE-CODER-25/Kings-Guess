@@ -3205,7 +3205,7 @@ class _MyRoleCard extends StatelessWidget {
     return RoleCharacterCard(
       role: role,
       playerUsername: player?.username,
-      size: RoleCharacterCardSize.standard,
+      size: RoleCharacterCardSize.hero,
       reveal: player?.currentRole.isNotEmpty == true,
     );
   }
@@ -3352,11 +3352,27 @@ class _Scoreboard extends StatelessWidget {
     return Container(
       width: double.infinity,
       constraints: const BoxConstraints(maxHeight: 260),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE7C879), width: 2),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFFAEC), Color(0xFFFFE6A0)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE5B540), width: 2.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55351A10),
+            blurRadius: 0,
+            offset: Offset(0, 6),
+          ),
+          BoxShadow(
+            color: Color(0x22351A10),
+            blurRadius: 14,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -3397,44 +3413,67 @@ class _ScoreRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              '@${player.username}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: isRemoved ? Colors.black54 : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isRemoved
+                ? const [Color(0xFFEFE4D0), Color(0xFFD8CAB5)]
+                : const [Color(0xFFFFF4D9), Color(0xFFFFFAEC)],
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE7C879), width: 1.5),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFE6A0), Color(0xFFE5B540)],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFFFAEC)),
+              ),
+              child: const Icon(
+                Icons.shield_rounded,
+                color: Color(0xFFB83A4B),
+                size: 18,
               ),
             ),
-          ),
-          if (disablePolishForDebug)
-            Text(
-              '${player.score}',
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                color: isRemoved ? Colors.black54 : null,
-              ),
-            )
-          else
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              transitionBuilder: (child, animation) => ScaleTransition(
-                scale: animation,
-                child: FadeTransition(opacity: animation, child: child),
-              ),
+            const SizedBox(width: 10),
+            Expanded(
               child: Text(
-                '${player.score}',
-                key: ValueKey('${player.uid}-${player.score}'),
+                '@${player.username}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontWeight: FontWeight.w900,
-                  color: isRemoved ? Colors.black54 : null,
+                  color: isRemoved ? Colors.black54 : const Color(0xFF4C2B20),
                 ),
               ),
             ),
-        ],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isRemoved
+                    ? const Color(0xFFB7A890)
+                    : const Color(0xFF233B7A),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: const Color(0xFFFFFAEC)),
+              ),
+              child: Text(
+                '${player.score}',
+                style: TextStyle(
+                  color: isRemoved ? Colors.black54 : Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -3503,37 +3542,16 @@ class _FinalResultsCard extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w900,
+                  color: const Color(0xFF4C2B20),
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                finalKing == null
-                    ? 'The court stands empty.'
-                    : 'Final King: @${finalKing.username}',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              if (finalKing != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  '${finalKing.score} royal points',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF7E4F2B),
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
+              const GameDivider(),
+              const SizedBox(height: 8),
+              _FinalKingBanner(finalKing: finalKing),
               if (room.gameEndedReason.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  room.gameEndedReason,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
+                const SizedBox(height: 14),
+                _GameEndedReason(message: room.gameEndedReason),
               ],
               const SizedBox(height: 18),
               if (podium.isNotEmpty) _Podium(players: podium),
@@ -3591,25 +3609,169 @@ class _Podium extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        for (var index = 0; index < players.length; index++)
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF233B7A), Color(0xFF14224E)],
+        ),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0xFFE5B540), width: 2.2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const GameSectionTitle(
+            title: 'Royal Podium',
+            subtitle: 'Top court honors',
+            icon: Icons.emoji_events_rounded,
+          ),
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (var index = 0; index < players.length; index++)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: _PodiumSlot(
+                      player: players[index],
+                      rank: index + 1,
+                      height: switch (index) {
+                        0 => 128.0,
+                        1 => 102.0,
+                        _ => 88.0,
+                      },
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FinalKingBanner extends StatelessWidget {
+  const _FinalKingBanner({required this.finalKing});
+
+  final GamePlayer? finalKing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFF4D9), Color(0xFFFFDFA0)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE5B540), width: 2.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55351A10),
+            blurRadius: 0,
+            offset: Offset(0, 5),
+          ),
+          BoxShadow(color: Color(0x55E5B540), blurRadius: 18),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: const RadialGradient(
+                colors: [Color(0xFFFFE6A0), Color(0xFFE5B540)],
+              ),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFFFFAEC), width: 2),
+            ),
+            child: const Icon(
+              Icons.workspace_premium_rounded,
+              color: Color(0xFFB83A4B),
+              size: 30,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: _PodiumSlot(
-                player: players[index],
-                rank: index + 1,
-                height: switch (index) {
-                  0 => 118.0,
-                  1 => 92.0,
-                  _ => 78.0,
-                },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  finalKing == null
+                      ? 'The court stands empty.'
+                      : 'Final King: @${finalKing!.username}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF4C2B20),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (finalKing != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '${finalKing!.score} royal points',
+                    style: const TextStyle(
+                      color: Color(0xFF7E4F2B),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GameEndedReason extends StatelessWidget {
+  const _GameEndedReason({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFAEC),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE7C879), width: 1.8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.history_edu_rounded, color: Color(0xFFB83A4B)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFF4C2B20),
+                fontWeight: FontWeight.w900,
               ),
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -3627,127 +3789,97 @@ class _PodiumSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (disablePolishForDebug) {
-      return Column(
-        children: [
-          Text(
-            rank == 1 ? '👑' : '🏅',
-            style: TextStyle(fontSize: rank == 1 ? 34 : 28),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            height: height,
-            width: double.infinity,
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: rank == 1
-                    ? const [Color(0xFFE5B540), Color(0xFFFFE6A0)]
-                    : const [Color(0xFFFFDFA0), Color(0xFFFFF4D9)],
+    return Column(
+      children: [
+        _PodiumRankIcon(rank: rank),
+        const SizedBox(height: 6),
+        Container(
+          height: height,
+          width: double.infinity,
+          padding: const EdgeInsets.all(9),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: rank == 1
+                  ? const [Color(0xFFFFE6A0), Color(0xFFE5B540)]
+                  : const [Color(0xFFFFF4D9), Color(0xFFFFDFA0)],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFFFF4D9), width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: rank == 1
+                    ? const Color(0x88E5B540)
+                    : const Color(0x44351A10),
+                blurRadius: rank == 1 ? 24 : 14,
+                offset: const Offset(0, 8),
               ),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFFFF4D9), width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: rank == 1
-                      ? const Color(0x88E5B540)
-                      : const Color(0x33351A10),
-                  blurRadius: rank == 1 ? 22 : 12,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '#$rank',
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '@${player.username}',
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-                Text(
-                  '${player.score}',
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-              ],
-            ),
+            ],
           ),
-        ],
-      );
-    }
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '#$rank',
+                style: const TextStyle(
+                  color: Color(0xFF4C2B20),
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '@${player.username}',
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF4C2B20),
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(
+                '${player.score} pts',
+                style: const TextStyle(
+                  color: Color(0xFF7E4F2B),
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: Duration(milliseconds: 520 + rank * 120),
-      curve: Curves.easeOutBack,
-      builder: (context, value, child) {
-        return Opacity(
-          opacity: value.clamp(0.0, 1.0),
-          child: Transform.translate(
-            offset: Offset(0, (1 - value) * 26),
-            child: Transform.scale(scale: 0.88 + value * 0.12, child: child),
-          ),
-        );
-      },
-      child: Column(
-        children: [
-          Text(
-            rank == 1 ? '👑' : '🏅',
-            style: TextStyle(fontSize: rank == 1 ? 34 : 28),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            height: height,
-            width: double.infinity,
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: rank == 1
-                    ? const [Color(0xFFE5B540), Color(0xFFFFE6A0)]
-                    : const [Color(0xFFFFDFA0), Color(0xFFFFF4D9)],
-              ),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFFFF4D9), width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: rank == 1
-                      ? const Color(0x88E5B540)
-                      : const Color(0x33351A10),
-                  blurRadius: rank == 1 ? 22 : 12,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '#$rank',
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '@${player.username}',
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-                Text(
-                  '${player.score}',
-                  style: const TextStyle(fontWeight: FontWeight.w900),
-                ),
-              ],
-            ),
-          ),
-        ],
+class _PodiumRankIcon extends StatelessWidget {
+  const _PodiumRankIcon({required this.rank});
+
+  final int rank;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: rank == 1 ? 48 : 40,
+      height: rank == 1 ? 48 : 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: rank == 1
+              ? const [Color(0xFFFFF4D9), Color(0xFFE5B540)]
+              : const [Color(0xFFFFE6A0), Color(0xFFD99A2B)],
+        ),
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFFFFAEC), width: 2),
+        boxShadow: const [BoxShadow(color: Color(0x55E5B540), blurRadius: 14)],
+      ),
+      child: Icon(
+        rank == 1
+            ? Icons.workspace_premium_rounded
+            : Icons.military_tech_rounded,
+        color: const Color(0xFFB83A4B),
+        size: rank == 1 ? 28 : 24,
       ),
     );
   }
