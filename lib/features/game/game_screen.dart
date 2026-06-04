@@ -12,15 +12,18 @@ import '../home/home_screen.dart';
 import '../../services/audio_service.dart';
 import '../../services/room_consistency_service.dart';
 import '../../widgets/game_button.dart';
+import '../../widgets/game_divider.dart';
 import '../../widgets/game_particle_overlay.dart';
 import '../../widgets/game_panel.dart';
+import '../../widgets/game_screen_background.dart';
+import '../../widgets/game_section_title.dart';
 import '../../widgets/royal_background.dart';
 import '../../widgets/royal_button.dart';
 import '../../widgets/royal_card.dart';
 import '../../widgets/royal_nav.dart';
 import '../../widgets/game_toast.dart';
 import '../../widgets/pressable_scale.dart';
-import '../../widgets/role_visuals.dart';
+import '../../widgets/role_mini_card.dart';
 import 'data/role_data.dart';
 import 'game_service.dart';
 import 'widgets/role_character_card.dart';
@@ -576,6 +579,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
     return Scaffold(
       body: RoyalBackground(
+        type: GameScreenType.game,
         child: Stack(
           children: [
             StreamBuilder<GameRoom?>(
@@ -1410,20 +1414,35 @@ class _CourtEnvironmentBackdrop extends StatelessWidget {
     return IgnorePointer(
       child: Stack(
         children: [
-          Positioned(
-            top: 82,
-            left: 20,
-            right: 20,
-            child: Container(
-              height: 260,
+          Positioned.fill(
+            child: DecoratedBox(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(38),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFF081334).withValues(alpha: 0.56),
+                    const Color(0xFF172A63).withValues(alpha: 0.36),
+                    const Color(0xFF4C2B20).withValues(alpha: 0.20),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 48,
+            left: -20,
+            right: -20,
+            child: Container(
+              height: 330,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(80),
                 gradient: const RadialGradient(
                   center: Alignment.topCenter,
-                  radius: 0.9,
+                  radius: 0.82,
                   colors: [
-                    Color(0x33FFE6A0),
-                    Color(0x22000000),
+                    Color(0x55FFE6A0),
+                    Color(0x22233B7A),
                     Color(0x00000000),
                   ],
                 ),
@@ -1431,14 +1450,42 @@ class _CourtEnvironmentBackdrop extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: -44,
-            top: 210,
-            child: _CourtPillar(color: const Color(0x4423325F)),
+            left: 22,
+            top: 74,
+            child: _CornerOrnament(alignment: Alignment.topLeft),
           ),
           Positioned(
-            right: -44,
-            top: 210,
-            child: _CourtPillar(color: const Color(0x4423325F)),
+            right: 22,
+            top: 74,
+            child: _CornerOrnament(alignment: Alignment.topRight),
+          ),
+          Positioned(
+            left: -36,
+            top: 188,
+            child: _CourtPillar(color: const Color(0x663F2B66)),
+          ),
+          Positioned(
+            right: -36,
+            top: 188,
+            child: _CourtPillar(color: const Color(0x663F2B66)),
+          ),
+          Positioned(
+            left: 48,
+            right: 48,
+            top: 168,
+            child: Container(
+              height: 4,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0x00F4B83F),
+                    Color(0x88F4B83F),
+                    Color(0x00F4B83F),
+                  ],
+                ),
+              ),
+            ),
           ),
           Positioned(
             left: 24,
@@ -1468,12 +1515,89 @@ class _CourtPillar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 78,
+      width: 74,
       height: 310,
       decoration: BoxDecoration(
-        color: color,
+        gradient: LinearGradient(
+          colors: [
+            color.withValues(alpha: 0.18),
+            color,
+            const Color(0x55233B7A),
+          ],
+        ),
         borderRadius: BorderRadius.circular(40),
-        border: Border.all(color: const Color(0x22FFE6A0), width: 2),
+        border: Border.all(color: const Color(0x33FFE6A0), width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 26,
+            offset: Offset(0, 14),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CornerOrnament extends StatelessWidget {
+  const _CornerOrnament({required this.alignment});
+
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final flip = alignment == Alignment.topRight;
+    return Transform.scale(
+      scaleX: flip ? -1 : 1,
+      child: SizedBox(
+        width: 82,
+        height: 82,
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              top: 0,
+              child: Container(
+                width: 62,
+                height: 10,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFE5B540), Color(0x00E5B540)],
+                  ),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              top: 0,
+              child: Container(
+                width: 10,
+                height: 62,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFE5B540), Color(0x00E5B540)],
+                  ),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 18,
+              top: 18,
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0x99FFE6A0), width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1498,29 +1622,47 @@ class _GameTopHud extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _HudPill(
-            icon: Icons.flag_rounded,
-            label: 'Round ${room.currentRound}/${room.selectedRounds}',
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xEE14224E), Color(0xDD233B7A)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0x88FFE6A0), width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x77000000),
+            blurRadius: 18,
+            offset: Offset(0, 9),
           ),
-        ),
-        const SizedBox(width: 8),
-        _HudPill(icon: Icons.groups_rounded, label: '$activePlayerCount'),
-        const SizedBox(width: 8),
-        _HudIconButton(
-          icon: Icons.leaderboard_rounded,
-          selected: isScoreboardOpen,
-          onPressed: onToggleScoreboard,
-        ),
-        const SizedBox(width: 8),
-        _HudIconButton(
-          icon: Icons.menu_rounded,
-          selected: isMenuOpen,
-          onPressed: onToggleMenu,
-        ),
-      ],
+          BoxShadow(color: Color(0x33F4B83F), blurRadius: 18),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _HudPill(
+              icon: Icons.flag_rounded,
+              label: 'Round ${room.currentRound}/${room.selectedRounds}',
+            ),
+          ),
+          const SizedBox(width: 8),
+          _HudPill(icon: Icons.groups_rounded, label: '$activePlayerCount'),
+          const SizedBox(width: 8),
+          _HudIconButton(
+            icon: Icons.leaderboard_rounded,
+            selected: isScoreboardOpen,
+            onPressed: onToggleScoreboard,
+          ),
+          const SizedBox(width: 8),
+          _HudIconButton(
+            icon: Icons.menu_rounded,
+            selected: isMenuOpen,
+            onPressed: onToggleMenu,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1537,7 +1679,9 @@ class _HudPill extends StatelessWidget {
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 13),
       decoration: BoxDecoration(
-        color: const Color(0xE6261B32),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF20366F), Color(0xFF101C43)],
+        ),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE5B540), width: 1.6),
         boxShadow: const [
@@ -1587,12 +1731,18 @@ class _HudIconButton extends StatelessWidget {
     return PressableScale(
       onPressed: onPressed,
       child: Container(
-        width: 46,
-        height: 46,
+        width: 50,
+        height: 50,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFE5B540) : const Color(0xE6261B32),
-          borderRadius: BorderRadius.circular(18),
+          gradient: selected
+              ? const LinearGradient(
+                  colors: [Color(0xFFFFE6A0), Color(0xFFE5B540)],
+                )
+              : const LinearGradient(
+                  colors: [Color(0xFF273E7A), Color(0xFF101C43)],
+                ),
+          borderRadius: BorderRadius.circular(19),
           border: Border.all(color: const Color(0xFFFFE6A0), width: 1.4),
           boxShadow: const [
             BoxShadow(
@@ -1714,6 +1864,8 @@ class _CourtArena extends StatelessWidget {
               RepaintBoundary(child: _PressureTimer(turnEndsAt: turnEndsAt)),
               const SizedBox(height: 16),
               RepaintBoundary(child: _MyRoleCard(player: me)),
+              const SizedBox(height: 16),
+              const GameDivider(),
               const SizedBox(height: 16),
               if (room.lastActionMessage.isNotEmpty)
                 _EventStrip(
@@ -1854,39 +2006,100 @@ class _PressureTimerState extends State<_PressureTimer> {
     final minutes = (secondsLeft ~/ 60).toString();
     final seconds = (secondsLeft % 60).toString().padLeft(2, '0');
 
-    final timerFace = SizedBox(
-      width: 112,
-      height: 112,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          CircularProgressIndicator(
-            value: progress,
-            strokeWidth: 10,
-            strokeCap: StrokeCap.round,
-            backgroundColor: const Color(0xFFFFE6A0),
-            color: color,
+    final timerFace = Container(
+      width: 138,
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF233B7A), Color(0xFF101C43)],
+        ),
+        borderRadius: BorderRadius.circular(34),
+        border: Border.all(color: const Color(0xFFFFE6A0), width: 2.5),
+        boxShadow: [
+          const BoxShadow(
+            color: Color(0x77351A10),
+            blurRadius: 0,
+            offset: Offset(0, 7),
           ),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+          BoxShadow(
+            color: color.withValues(alpha: danger ? 0.52 : 0.30),
+            blurRadius: danger ? 26 : 18,
+            spreadRadius: danger ? 2 : 0,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'COUNTDOWN',
+            style: TextStyle(
+              color: Color(0xFFFFE6A0),
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: 92,
+            height: 92,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                Text(
-                  '$minutes:$seconds',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: danger ? const Color(0xFFB83A4B) : null,
-                  ),
-                ),
-                if (warning)
-                  Text(
-                    danger ? 'DANGER' : 'HURRY',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0,
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const RadialGradient(
+                      colors: [Color(0xFFFFF4D9), Color(0xFFFFDFA0)],
+                    ),
+                    border: Border.all(
+                      color: const Color(0xFFE5B540),
+                      width: 4,
                     ),
                   ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(5),
+                  child: CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: 9,
+                    strokeCap: StrokeCap.round,
+                    backgroundColor: const Color(0x55FFFFFF),
+                    color: color,
+                  ),
+                ),
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '$minutes:$seconds',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: danger
+                              ? const Color(0xFFB83A4B)
+                              : const Color(0xFF4C2B20),
+                        ),
+                      ),
+                      Text(
+                        danger
+                            ? 'DANGER'
+                            : warning
+                            ? 'HURRY'
+                            : 'TIME',
+                        style: TextStyle(
+                          color: danger
+                              ? const Color(0xFFB83A4B)
+                              : const Color(0xFF7E4F2B),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -1934,12 +2147,27 @@ class _SuspectStage extends StatelessWidget {
 
     return Column(
       children: [
-        Text(
-          isCurrentGuesser
-              ? 'Choose your suspect'
-              : 'The court waits in shadow',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF14224E), Color(0xFF233B7A)],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE5B540), width: 1.5),
+          ),
+          child: Text(
+            isCurrentGuesser
+                ? 'Choose your suspect'
+                : 'The court waits in shadow',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFFFFF4D9),
+              fontWeight: FontWeight.w900,
+              fontSize: 18,
+            ),
+          ),
         ),
         const SizedBox(height: 12),
         LayoutBuilder(
@@ -1994,46 +2222,98 @@ class _SuspectCardState extends State<_SuspectCard> {
   @override
   Widget build(BuildContext context) {
     final focused = widget.enabled && _pressed;
+    final statusText = widget.enabled
+        ? 'Accuse as ${widget.targetRole.isEmpty ? 'target' : widget.targetRole}'
+        : widget.player.isReconnecting
+        ? 'Reconnecting...'
+        : widget.player.isOnline
+        ? 'Mysterious court card'
+        : 'Disconnected';
+
     if (disablePolishForDebug) {
       return Opacity(
         opacity: widget.enabled ? 1 : 0.72,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          onTapDown: widget.enabled
+              ? (_) => setState(() => _pressed = true)
+              : null,
+          onTapUp: widget.enabled
+              ? (_) => setState(() => _pressed = false)
+              : null,
+          onTapCancel: widget.enabled
+              ? () => setState(() => _pressed = false)
+              : null,
           onTap: widget.enabled ? widget.onTap : null,
           child: Container(
-            padding: const EdgeInsets.all(13),
+            constraints: const BoxConstraints(minHeight: 112),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFFFFF4D9), Color(0xFFFFDFA0)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFFFFAEC), Color(0xFFFFDFA0)],
               ),
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: widget.enabled
+                color: focused
+                    ? const Color(0xFFFFE6A0)
+                    : widget.enabled
                     ? const Color(0xFFE5B540)
                     : const Color(0xFFE7C879),
-                width: 2,
+                width: focused ? 3 : 2,
               ),
+              boxShadow: [
+                const BoxShadow(
+                  color: Color(0x66351A10),
+                  blurRadius: 0,
+                  offset: Offset(0, 6),
+                ),
+                BoxShadow(
+                  color: focused
+                      ? const Color(0x99E5B540)
+                      : const Color(0x44351A10),
+                  blurRadius: focused ? 24 : 14,
+                  offset: Offset(0, focused ? 10 : 7),
+                ),
+              ],
             ),
             child: Row(
               children: [
                 Container(
-                  width: 56,
-                  height: 64,
+                  width: 66,
+                  height: 74,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF23325F),
-                    borderRadius: BorderRadius.circular(18),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFF233B7A), Color(0xFF101C43)],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: const Color(0xFFFFE6A0),
-                      width: 2,
+                      width: 2.5,
                     ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x66351A10),
+                        blurRadius: 10,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
                   ),
-                  child: const Text('?', style: TextStyle(fontSize: 30)),
+                  child: const Icon(
+                    Icons.person_search_rounded,
+                    color: Color(0xFFFFE6A0),
+                    size: 34,
+                  ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         '@${widget.player.username}',
@@ -2041,26 +2321,40 @@ class _SuspectCardState extends State<_SuspectCard> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
-                          fontSize: 16,
+                          fontSize: 18,
+                          color: Color(0xFF4C2B20),
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
-                        widget.enabled
-                            ? 'Accuse as ${widget.targetRole.isEmpty ? 'target' : widget.targetRole}'
-                            : widget.player.isReconnecting
-                            ? 'Reconnecting...'
-                            : widget.player.isOnline
-                            ? 'Mysterious court card'
-                            : 'Disconnected',
+                        statusText,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          color: Color(0xFF76543C),
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                if (widget.enabled) const Icon(Icons.gavel_rounded),
+                if (widget.enabled)
+                  Container(
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: focused
+                          ? const Color(0xFFE5B540)
+                          : const Color(0xFFFFE6A0),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFD99A2B)),
+                    ),
+                    child: const Icon(
+                      Icons.gavel_rounded,
+                      color: Color(0xFF4C2B20),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -2094,11 +2388,15 @@ class _SuspectCardState extends State<_SuspectCard> {
           padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFFFFF4D9), Color(0xFFFFDFA0)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFFFFAEC), Color(0xFFFFDFA0)],
             ),
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: widget.enabled
+              color: focused
+                  ? const Color(0xFFFFE6A0)
+                  : widget.enabled
                   ? const Color(0xFFE5B540)
                   : const Color(0xFFE7C879),
               width: focused ? 3 : 2,
@@ -2133,23 +2431,32 @@ class _SuspectCardState extends State<_SuspectCard> {
               Row(
                 children: [
                   Container(
-                    width: 56,
-                    height: 64,
+                    width: 66,
+                    height: 74,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF23325F),
-                      borderRadius: BorderRadius.circular(18),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xFF233B7A), Color(0xFF101C43)],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: const Color(0xFFFFE6A0),
-                        width: 2,
+                        width: 2.5,
                       ),
                     ),
-                    child: const Text('?', style: TextStyle(fontSize: 30)),
+                    child: const Icon(
+                      Icons.person_search_rounded,
+                      color: Color(0xFFFFE6A0),
+                      size: 34,
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           '@${widget.player.username}',
@@ -2157,26 +2464,40 @@ class _SuspectCardState extends State<_SuspectCard> {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontWeight: FontWeight.w900,
-                            fontSize: 16,
+                            fontSize: 18,
+                            color: Color(0xFF4C2B20),
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
-                          widget.enabled
-                              ? 'Accuse as ${widget.targetRole.isEmpty ? 'target' : widget.targetRole}'
-                              : widget.player.isReconnecting
-                              ? 'Reconnecting...'
-                              : widget.player.isOnline
-                              ? 'Mysterious court card'
-                              : 'Disconnected',
+                          statusText,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          style: const TextStyle(
+                            color: Color(0xFF76543C),
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  if (widget.enabled) const Icon(Icons.gavel_rounded),
+                  if (widget.enabled)
+                    Container(
+                      width: 42,
+                      height: 42,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: focused
+                            ? const Color(0xFFE5B540)
+                            : const Color(0xFFFFE6A0),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFD99A2B)),
+                      ),
+                      child: const Icon(
+                        Icons.gavel_rounded,
+                        color: Color(0xFF4C2B20),
+                      ),
+                    ),
                 ],
               ),
             ],
@@ -2299,18 +2620,11 @@ class _RoyalCourtDrawer extends StatelessWidget {
             onPressed: onToggle,
             child: Row(
               children: [
-                const Icon(
-                  Icons.workspace_premium_rounded,
-                  color: Color(0xFFB83A4B),
-                ),
-                const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    'Royal Court (${completedPlayers.length})',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 17,
-                    ),
+                  child: GameSectionTitle(
+                    title: 'Royal Court (${completedPlayers.length})',
+                    subtitle: 'Completed roles this round',
+                    icon: Icons.workspace_premium_rounded,
                   ),
                 ),
                 Icon(
@@ -2371,11 +2685,8 @@ class _CourtRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            RoleVisuals.emojiFor(role),
-            style: const TextStyle(fontSize: 22),
-          ),
-          const SizedBox(width: 10),
+          RoleMiniCard(roleName: role, compact: true),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               '@${player.username}',
@@ -2406,15 +2717,10 @@ class _ScoreboardDrawer extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(Icons.leaderboard_rounded, color: Color(0xFFB83A4B)),
-              SizedBox(width: 8),
-              Text(
-                'Scoreboard',
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-              ),
-            ],
+          const GameSectionTitle(
+            title: 'Scoreboard',
+            subtitle: 'Royal points',
+            icon: Icons.leaderboard_rounded,
           ),
           const SizedBox(height: 12),
           _Scoreboard(players: players),
@@ -2450,40 +2756,82 @@ class _GameMenuDrawer extends StatelessWidget {
     return GamePanel(
       variant: GamePanelVariant.dense,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _GameSummary(room: room),
+          const GameSectionTitle(
+            title: 'Game Menu',
+            subtitle: 'Room tools and court actions',
+            icon: Icons.menu_rounded,
+          ),
           const SizedBox(height: 12),
-          GameButton(
-            label: isEndGameRequesting ? 'Requesting...' : 'Request End Game',
-            icon: Icons.flag_rounded,
-            style: GameButtonStyle.secondary,
-            onPressed: canRequestEndGame && !isEndGameRequesting && !isLeaving
-                ? onRequestEndGameVote
-                : null,
+          const GameDivider(),
+          const SizedBox(height: 12),
+          _GameSummary(room: room),
+          const SizedBox(height: 14),
+          _MenuButtonFrame(
+            child: GameButton(
+              label: isEndGameRequesting ? 'Requesting...' : 'Request End Game',
+              icon: Icons.flag_rounded,
+              style: GameButtonStyle.secondary,
+              onPressed: canRequestEndGame && !isEndGameRequesting && !isLeaving
+                  ? onRequestEndGameVote
+                  : null,
+            ),
           ),
           if (isHost) ...[
             const SizedBox(height: 10),
-            GameButton(
-              label: 'Check AFK Players',
-              icon: Icons.manage_search_rounded,
-              style: GameButtonStyle.secondary,
-              onPressed: onCheckAfkPlayers,
+            _MenuButtonFrame(
+              child: GameButton(
+                label: 'Check AFK Players',
+                icon: Icons.manage_search_rounded,
+                style: GameButtonStyle.secondary,
+                onPressed: onCheckAfkPlayers,
+              ),
             ),
           ],
           const SizedBox(height: 10),
-          GameButton(
-            label: isLeaving ? 'Leaving...' : 'Leave Room',
-            icon: Icons.exit_to_app_rounded,
-            style: GameButtonStyle.danger,
-            onPressed: isLeaving
-                ? null
-                : () {
-                    debugPrint('IN_GAME_MENU_LEAVE_ROOM_PRESSED');
-                    onLeaveRoom();
-                  },
+          _MenuButtonFrame(
+            danger: true,
+            child: GameButton(
+              label: isLeaving ? 'Leaving...' : 'Leave Room',
+              icon: Icons.exit_to_app_rounded,
+              style: GameButtonStyle.danger,
+              onPressed: isLeaving
+                  ? null
+                  : () {
+                      debugPrint('IN_GAME_MENU_LEAVE_ROOM_PRESSED');
+                      onLeaveRoom();
+                    },
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MenuButtonFrame extends StatelessWidget {
+  const _MenuButtonFrame({required this.child, this.danger = false});
+
+  final Widget child;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: danger
+              ? const [Color(0x33B83A4B), Color(0x11B83A4B)]
+              : const [Color(0x33E5B540), Color(0x11233B7A)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: danger ? const Color(0x66B83A4B) : const Color(0x66E5B540),
+        ),
+      ),
+      child: child,
     );
   }
 }
@@ -3014,11 +3362,9 @@ class _Scoreboard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Scoreboard',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+            const GameSectionTitle(
+              title: 'Scoreboard',
+              icon: Icons.leaderboard_rounded,
             ),
             const SizedBox(height: 10),
             for (final player in activePlayers) _ScoreRow(player: player),

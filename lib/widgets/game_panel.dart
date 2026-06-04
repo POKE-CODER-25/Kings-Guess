@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../config/polish_config.dart';
 import '../core/theme/game_colors.dart';
 import '../core/theme/game_gradients.dart';
 import '../core/theme/game_shadows.dart';
@@ -22,12 +21,6 @@ class GamePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (disablePolishForDebug) {
-      return Card(
-        child: Padding(padding: const EdgeInsets.all(16), child: child),
-      );
-    }
-
     final padding = switch (variant) {
       GamePanelVariant.dense => const EdgeInsets.all(14),
       GamePanelVariant.compact => const EdgeInsets.all(22),

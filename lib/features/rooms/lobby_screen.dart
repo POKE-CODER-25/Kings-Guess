@@ -19,6 +19,9 @@ import '../../widgets/royal_nav.dart';
 import '../../widgets/game_toast.dart';
 import '../../widgets/game_badge.dart';
 import '../../widgets/game_avatar.dart';
+import '../../widgets/game_divider.dart';
+import '../../widgets/game_screen_background.dart';
+import '../../widgets/game_section_title.dart';
 import '../../widgets/game_text_field.dart';
 import '../../widgets/pressable_scale.dart';
 import 'room_model.dart';
@@ -229,6 +232,7 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Scaffold(
       body: RoyalBackground(
+        type: GameScreenType.lobby,
         child: StreamBuilder<RoomModel?>(
           stream: _roomService.watchRoom(widget.roomId),
           builder: (context, roomSnapshot) {
@@ -314,6 +318,8 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
                         ),
                         const SizedBox(height: 18),
                         _RoomDetails(room: room, playerCount: playerCount),
+                        const SizedBox(height: 16),
+                        const GameDivider(),
                         if (_hasOfflineActivePlayer(players)) ...[
                           const SizedBox(height: 10),
                           const Text(
@@ -330,13 +336,10 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
                           ),
                         ],
                         const SizedBox(height: 18),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Players',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
+                        const GameSectionTitle(
+                          title: 'Players',
+                          subtitle: 'The court waiting room',
+                          icon: Icons.groups_rounded,
                         ),
                         const SizedBox(height: 10),
                         if (!playersSnapshot.hasData)
@@ -358,52 +361,70 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
                           ),
                           const SizedBox(height: 12),
                         ],
-                        if (isHost) ...[
-                          if (!canStart)
-                            Text(
-                              'Need at least 5 players to start',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          const SizedBox(height: 12),
-                          _HostStartAction(
-                            canStart: canStart && room.status == 'waiting',
-                            isLoading: _isStarting,
-                            onStart: _startGame,
-                            alreadyStarted: room.status != 'waiting',
-                          ),
-                          const SizedBox(height: 10),
-                          RoyalButton(
-                            label: 'Check AFK Players',
-                            icon: Icons.manage_search_rounded,
-                            isSecondary: true,
-                            onPressed: _checkAfkPlayers,
-                          ),
-                        ] else
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                        _LobbyActionPanel(
+                          child: Column(
                             children: [
+                              if (isHost) ...[
+                                if (!canStart)
+                                  Text(
+                                    'Need at least 5 players to start',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.error,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                const SizedBox(height: 12),
+                                _HostStartAction(
+                                  canStart:
+                                      canStart && room.status == 'waiting',
+                                  isLoading: _isStarting,
+                                  onStart: _startGame,
+                                  alreadyStarted: room.status != 'waiting',
+                                ),
+                                const SizedBox(height: 10),
+                                RoyalButton(
+                                  label: 'Check AFK Players',
+                                  icon: Icons.manage_search_rounded,
+                                  isSecondary: true,
+                                  onPressed: _checkAfkPlayers,
+                                ),
+                              ] else
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        room.status != 'waiting'
+                                            ? 'Game starting soon'
+                                            : 'Waiting for host',
+                                        textAlign: TextAlign.center,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const WaitingDots(),
+                                  ],
+                                ),
+                              const SizedBox(height: 10),
                               Text(
                                 room.status != 'waiting'
-                                    ? 'Game starting soon'
-                                    : 'Waiting for host',
+                                    ? 'The room has started.'
+                                    : 'Waiting for players to join...',
                                 textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w800),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
-                              const SizedBox(width: 8),
-                              const WaitingDots(),
                             ],
                           ),
-                        const SizedBox(height: 10),
-                        Text(
-                          room.status != 'waiting'
-                              ? 'The room has started.'
-                              : 'Waiting for players to join...',
-                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 10),
                         if (currentPlayer?.isRemoved == true &&
@@ -425,7 +446,7 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
                             ),
                           ),
                         const SizedBox(height: 14),
-                        RoomChatPanel(roomId: widget.roomId),
+                        _LobbyChatFrame(roomId: widget.roomId),
                       ],
                     ),
                   ),
@@ -495,14 +516,36 @@ class _RoomDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFAEC),
-        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFFAEC), Color(0xFFFFE6A0)],
+        ),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFE5B540), width: 2.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55351A10),
+            blurRadius: 0,
+            offset: Offset(0, 6),
+          ),
+          BoxShadow(
+            color: Color(0x33351A10),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         children: [
+          const GameSectionTitle(
+            title: 'Court Pass',
+            subtitle: 'Share these credentials with players',
+            icon: Icons.vpn_key_rounded,
+          ),
+          const SizedBox(height: 12),
           Wrap(
             alignment: WrapAlignment.center,
             spacing: 8,
@@ -511,21 +554,23 @@ class _RoomDetails extends StatelessWidget {
               GameBadge(
                 label: '${room.selectedRounds} rounds',
                 icon: Icons.casino_rounded,
+                color: const Color(0xFFB83A4B),
               ),
               GameBadge(
                 label: '$playerCount/${room.maxPlayers}',
                 icon: Icons.groups_rounded,
+                color: const Color(0xFF233B7A),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           _DetailRow(
             icon: Icons.meeting_room_rounded,
             label: 'Room ID',
             value: room.roomId,
             canCopy: true,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           _DetailRow(
             icon: Icons.lock_rounded,
             label: 'Password',
@@ -614,17 +659,36 @@ class _DetailRowState extends State<_DetailRow> {
                     ),
                   ),
                   if (widget.canCopy) ...[
-                    const SizedBox(width: 6),
-                    SizedBox(
-                      width: 34,
-                      height: 34,
-                      child: IconButton.filledTonal(
-                        onPressed: _copyValue,
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                        icon: Icon(
+                    const SizedBox(width: 8),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: _copyValue,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: _copied
+                                ? const [Color(0xFF52C77C), Color(0xFF2F8F57)]
+                                : const [Color(0xFFFFE6A0), Color(0xFFE5B540)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFFFFAEC)),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x44351A10),
+                              blurRadius: 0,
+                              offset: Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
                           _copied ? Icons.check_rounded : Icons.copy_rounded,
-                          size: 17,
+                          color: _copied
+                              ? Colors.white
+                              : const Color(0xFF4C2B20),
+                          size: 19,
                         ),
                       ),
                     ),
@@ -707,11 +771,35 @@ class _LobbyPlayerTile extends StatelessWidget {
       child: PressableScale(
         enabled: !isRemovedSection,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          constraints: const BoxConstraints(minHeight: 72),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF4D9),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE7C879), width: 2),
+            gradient: LinearGradient(
+              colors: isRemovedSection
+                  ? const [Color(0xFFEFE4D0), Color(0xFFD8CAB5)]
+                  : player.isHost
+                  ? const [Color(0xFFFFFAEC), Color(0xFFFFDFA0)]
+                  : const [Color(0xFFFFF4D9), Color(0xFFFFFAEC)],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: player.isHost
+                  ? const Color(0xFFE5B540)
+                  : const Color(0xFFE7C879),
+              width: player.isHost ? 2.5 : 2,
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x44351A10),
+                blurRadius: 0,
+                offset: Offset(0, 4),
+              ),
+              BoxShadow(
+                color: Color(0x22351A10),
+                blurRadius: 10,
+                offset: Offset(0, 6),
+              ),
+            ],
           ),
           child: Row(
             children: [
@@ -722,35 +810,57 @@ class _LobbyPlayerTile extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  '@${player.username}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    color: isRemovedSection ? Colors.black54 : null,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '@${player.username}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isRemovedSection
+                            ? Colors.black54
+                            : const Color(0xFF4C2B20),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      player.isHost ? 'Court host' : 'Waiting player',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF76543C),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
-              GameBadge(
-                label: player.isRemoved
-                    ? player.removalReason ?? 'removed'
-                    : player.isReconnecting
-                    ? 'reconnecting...'
-                    : player.isOnline
-                    ? 'online'
-                    : 'offline',
-                icon: player.isReconnecting
-                    ? Icons.sync_rounded
-                    : player.isOnline
-                    ? Icons.wifi_rounded
-                    : Icons.wifi_off_rounded,
-                color: player.isReconnecting
-                    ? const Color(0xFF7E4F2B)
-                    : player.isOnline
-                    ? const Color(0xFF2F8F57)
-                    : const Color(0xFF7E4F2B),
+              Flexible(
+                child: GameBadge(
+                  label: player.isRemoved
+                      ? player.removalReason ?? 'removed'
+                      : player.isReconnecting
+                      ? 'reconnecting'
+                      : player.isOnline
+                      ? 'online'
+                      : 'offline',
+                  icon: player.isReconnecting
+                      ? Icons.sync_rounded
+                      : player.isOnline
+                      ? Icons.wifi_rounded
+                      : Icons.wifi_off_rounded,
+                  color: player.isReconnecting
+                      ? const Color(0xFF7E4F2B)
+                      : player.isOnline
+                      ? const Color(0xFF2F8F57)
+                      : const Color(0xFF7E4F2B),
+                ),
               ),
               if (player.isHost) ...[
                 const SizedBox(width: 8),
@@ -796,9 +906,26 @@ class _GlowingHostBadgeState extends State<_GlowingHostBadge>
     if (disablePolishForDebug) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFD86B), Color(0xFFD99A2B)],
+          ),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Color(0xFFFFFAEC), width: 1.5),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x55351A10),
+              blurRadius: 0,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
         child: const Text(
           'Host',
-          style: TextStyle(fontWeight: FontWeight.w900),
+          style: TextStyle(
+            color: Color(0xFF4C2B20),
+            fontWeight: FontWeight.w900,
+          ),
         ),
       );
     }
@@ -874,11 +1001,21 @@ class _HostStartActionState extends State<_HostStartAction>
   @override
   Widget build(BuildContext context) {
     if (disablePolishForDebug) {
-      return RoyalButton(
-        label: widget.alreadyStarted ? 'Game Started' : 'Start Game',
-        icon: Icons.play_arrow_rounded,
-        isLoading: widget.isLoading,
-        onPressed: widget.canStart ? widget.onStart : null,
+      return Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0x44E5B540), Color(0x11233B7A)],
+          ),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: const Color(0x66E5B540)),
+        ),
+        child: RoyalButton(
+          label: widget.alreadyStarted ? 'Game Started' : 'Start Game',
+          icon: Icons.play_arrow_rounded,
+          isLoading: widget.isLoading,
+          onPressed: widget.canStart ? widget.onStart : null,
+        ),
       );
     }
 
@@ -896,6 +1033,84 @@ class _HostStartActionState extends State<_HostStartAction>
           ),
         );
       },
+    );
+  }
+}
+
+class _LobbyActionPanel extends StatelessWidget {
+  const _LobbyActionPanel({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFFAEC), Color(0xFFFFE6A0)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE5B540), width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55351A10),
+            blurRadius: 0,
+            offset: Offset(0, 5),
+          ),
+          BoxShadow(
+            color: Color(0x22351A10),
+            blurRadius: 12,
+            offset: Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const GameSectionTitle(
+            title: 'Ready Area',
+            subtitle: 'Start when the court is full',
+            icon: Icons.flag_rounded,
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _LobbyChatFrame extends StatelessWidget {
+  const _LobbyChatFrame({required this.roomId});
+
+  final String roomId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0x22E5B540), Color(0x11B83A4B)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0x66E5B540)),
+      ),
+      child: Column(
+        children: [
+          const GameSectionTitle(
+            title: 'Court Chat',
+            subtitle: 'Coordinate before the match',
+            icon: Icons.forum_rounded,
+          ),
+          const SizedBox(height: 10),
+          RoomChatPanel(roomId: roomId),
+        ],
+      ),
     );
   }
 }

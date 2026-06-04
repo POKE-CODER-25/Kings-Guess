@@ -5,8 +5,11 @@ import '../../widgets/royal_background.dart';
 import '../../widgets/royal_button.dart';
 import '../../widgets/royal_card.dart';
 import '../../widgets/royal_nav.dart';
+import '../../widgets/game_divider.dart';
+import '../../widgets/game_section_title.dart';
 import '../../widgets/game_toast.dart';
 import '../../widgets/game_badge.dart';
+import '../../widgets/game_text_field.dart';
 import 'lobby_screen.dart';
 import 'room_service.dart';
 
@@ -84,12 +87,35 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.castle_rounded,
-                      size: 62,
-                      color: Color(0xFFB83A4B),
+                    Container(
+                      width: 92,
+                      height: 92,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        gradient: const RadialGradient(
+                          colors: [Color(0xFFFFF4D9), Color(0xFFE5B540)],
+                        ),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFFFFFAEC),
+                          width: 3,
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x77351A10),
+                            blurRadius: 0,
+                            offset: Offset(0, 7),
+                          ),
+                          BoxShadow(color: Color(0x66E5B540), blurRadius: 24),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.castle_rounded,
+                        size: 54,
+                        color: Color(0xFFB83A4B),
+                      ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 14),
                     Text(
                       'Open a Private Court',
                       textAlign: TextAlign.center,
@@ -103,6 +129,12 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 22),
+                    const GameSectionTitle(
+                      title: 'Royal Match Length',
+                      subtitle: 'Choose how long the court will play',
+                      icon: Icons.casino_rounded,
+                    ),
+                    const SizedBox(height: 12),
                     Wrap(
                       spacing: 10,
                       runSpacing: 10,
@@ -121,16 +153,11 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 14),
-                      Text(
-                        _error!,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                      GameErrorBanner(message: _error!),
                     ],
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 20),
+                    const GameDivider(),
+                    const SizedBox(height: 20),
                     RoyalButton(
                       label: 'Create Court',
                       icon: Icons.castle_rounded,
@@ -172,43 +199,56 @@ class _RoundToken extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(18),
       onTap: onTap,
-      child: AnimatedScale(
-        scale: selected ? 1.06 : 1,
-        duration: const Duration(milliseconds: 180),
-        child: Container(
-          width: 78,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFFFFE6A0) : const Color(0xFFFFFAEC),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: selected
-                  ? const Color(0xFFE5B540)
-                  : const Color(0xFFE7C879),
-              width: selected ? 3 : 2,
-            ),
-            boxShadow: selected
-                ? const [
-                    BoxShadow(
-                      color: Color(0x55E5B540),
-                      blurRadius: 14,
-                      offset: Offset(0, 6),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Column(
-            children: [
-              Text(
-                '$rounds',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: const Color(0xFFB83A4B),
+      child: Container(
+        width: 86,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          gradient: selected
+              ? const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFFFF4D9), Color(0xFFE5B540)],
+                )
+              : const LinearGradient(
+                  colors: [Color(0xFFFFFAEC), Color(0xFFFFE6A0)],
                 ),
-              ),
-              const GameBadge(label: 'Rounds'),
-            ],
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: selected ? const Color(0xFFFFFAEC) : const Color(0xFFE7C879),
+            width: selected ? 3 : 2,
           ),
+          boxShadow: [
+            const BoxShadow(
+              color: Color(0x55351A10),
+              blurRadius: 0,
+              offset: Offset(0, 5),
+            ),
+            if (selected)
+              const BoxShadow(color: Color(0x66E5B540), blurRadius: 18),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(
+              selected ? Icons.workspace_premium_rounded : Icons.shield_rounded,
+              color: const Color(0xFFB83A4B),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$rounds',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: const Color(0xFF4C2B20),
+              ),
+            ),
+            const SizedBox(height: 5),
+            GameBadge(
+              label: 'Rounds',
+              color: selected
+                  ? const Color(0xFFB83A4B)
+                  : const Color(0xFF233B7A),
+            ),
+          ],
         ),
       ),
     );

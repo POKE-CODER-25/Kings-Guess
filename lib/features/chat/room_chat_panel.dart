@@ -110,9 +110,7 @@ class _RoomChatPanelState extends State<RoomChatPanel> {
     final width = widget.isFloating
         ? availableWidth.clamp(230.0, 330.0)
         : double.infinity;
-    final collapsedWidth = widget.isFloating
-        ? availableWidth.clamp(150.0, 172.0)
-        : double.infinity;
+    final collapsedWidth = widget.isFloating ? 70.0 : double.infinity;
 
     return StreamBuilder<List<RoomChatMessage>>(
       stream: _chatService.watchMessages(widget.roomId),
@@ -131,10 +129,25 @@ class _RoomChatPanelState extends State<RoomChatPanel> {
             1,
           ),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFAEC),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE5B540), width: 3),
+            gradient: _expanded
+                ? const LinearGradient(
+                    colors: [Color(0xFFFFFAEC), Color(0xFFFFE6A0)],
+                  )
+                : const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFFFE6A0), Color(0xFFE5B540)],
+                  ),
+            borderRadius: BorderRadius.circular(
+              widget.isFloating && !_expanded ? 999 : 24,
+            ),
+            border: Border.all(color: const Color(0xFFFFF4D9), width: 3),
             boxShadow: [
+              const BoxShadow(
+                color: Color(0x77351A10),
+                blurRadius: 0,
+                offset: Offset(0, 7),
+              ),
               BoxShadow(
                 color: _unreadCount > 0
                     ? const Color(0x77E5B540)
@@ -151,6 +164,7 @@ class _RoomChatPanelState extends State<RoomChatPanel> {
               _ChatHeader(
                 expanded: _expanded,
                 unreadCount: _unreadCount,
+                floating: widget.isFloating,
                 onTap: () {
                   setState(() {
                     _expanded = !_expanded;
@@ -189,71 +203,121 @@ class _ChatHeader extends StatelessWidget {
   const _ChatHeader({
     required this.expanded,
     required this.unreadCount,
+    required this.floating,
     required this.onTap,
   });
 
   final bool expanded;
   final int unreadCount;
+  final bool floating;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final collapsedFloating = floating && !expanded;
     return InkWell(
       onTap: onTap,
       child: Container(
-        height: 54,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        color: const Color(0xFFFFE6A0),
+        height: collapsedFloating ? 64 : 58,
+        padding: EdgeInsets.symmetric(horizontal: collapsedFloating ? 0 : 14),
+        decoration: BoxDecoration(
+          gradient: collapsedFloating
+              ? const RadialGradient(
+                  colors: [Color(0xFFFFF4D9), Color(0xFFE5B540)],
+                )
+              : const LinearGradient(
+                  colors: [Color(0xFFFFE6A0), Color(0xFFE5B540)],
+                ),
+        ),
         child: Row(
+          mainAxisAlignment: collapsedFloating
+              ? MainAxisAlignment.center
+              : MainAxisAlignment.start,
           children: [
-            const Icon(Icons.forum_rounded, color: Color(0xFFB83A4B)),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text(
-                'Royal Chat',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-            ),
-            if (unreadCount > 0)
-              TweenAnimationBuilder<double>(
-                key: ValueKey(unreadCount),
-                tween: Tween(begin: 1.25, end: 1),
-                duration: const Duration(milliseconds: 420),
-                curve: Curves.elasticOut,
-                builder: (context, scale, child) =>
-                    Transform.scale(scale: scale, child: child),
-                child: Container(
-                  constraints: const BoxConstraints(minWidth: 24),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 4,
-                  ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: collapsedFloating ? 44 : 34,
+                  height: collapsedFloating ? 44 : 34,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFB83A4B),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white, width: 1.5),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0x77B83A4B), blurRadius: 12),
-                    ],
-                  ),
-                  child: Text(
-                    '$unreadCount',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF233B7A), Color(0xFF101C43)],
                     ),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFFFFE6A0),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.forum_rounded,
+                    color: Color(0xFFFFE6A0),
+                    size: 22,
+                  ),
+                ),
+                if (unreadCount > 0 && collapsedFloating)
+                  Positioned(
+                    right: -6,
+                    top: -7,
+                    child: _UnreadBadge(unreadCount: unreadCount),
+                  ),
+              ],
+            ),
+            if (!collapsedFloating) ...[
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Royal Chat',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color(0xFF4C2B20),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
                   ),
                 ),
               ),
-            const SizedBox(width: 6),
-            Icon(
-              expanded ? Icons.expand_more_rounded : Icons.expand_less_rounded,
-            ),
+              if (unreadCount > 0) _UnreadBadge(unreadCount: unreadCount),
+              const SizedBox(width: 6),
+              Icon(
+                expanded
+                    ? Icons.expand_more_rounded
+                    : Icons.expand_less_rounded,
+                color: const Color(0xFF4C2B20),
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UnreadBadge extends StatelessWidget {
+  const _UnreadBadge({required this.unreadCount});
+
+  final int unreadCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFB83A4B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white, width: 1.5),
+        boxShadow: const [BoxShadow(color: Color(0x77B83A4B), blurRadius: 12)],
+      ),
+      child: Text(
+        '$unreadCount',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );

@@ -4,7 +4,9 @@ import '../../core/theme/game_colors.dart';
 import '../../config/polish_config.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/game_badge.dart';
+import '../../widgets/game_divider.dart';
 import '../../widgets/game_header.dart';
+import '../../widgets/game_section_title.dart';
 import '../../widgets/royal_nav.dart';
 import '../rooms/create_room_screen.dart';
 import '../rooms/join_room_screen.dart';
@@ -74,6 +76,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 22),
                     const _FloatingRoyalCard(),
+                    const SizedBox(height: 20),
+                    const GameDivider(),
                     const SizedBox(height: 24),
                     RoyalButton(
                       label: 'Create Court',
@@ -109,19 +113,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                   child: const Row(
                     children: [
-                      Icon(
-                        Icons.menu_book_rounded,
-                        color: GameColors.ruby,
-                        size: 34,
-                      ),
-                      SizedBox(width: 14),
                       Expanded(
-                        child: Text(
-                          'How To Play',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                          ),
+                        child: GameSectionTitle(
+                          title: 'How To Play',
+                          subtitle: 'Learn the court roles and turns',
+                          icon: Icons.menu_book_rounded,
                         ),
                       ),
                       Icon(Icons.chevron_right_rounded),
@@ -131,14 +127,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
               RoyalCard(
-                child: Row(
-                  children: const [
-                    Icon(Icons.settings_rounded, color: GameColors.royalBlue),
-                    SizedBox(width: 12),
+                child: const Row(
+                  children: [
                     Expanded(
-                      child: Text(
-                        'Settings coming soon',
-                        style: TextStyle(fontWeight: FontWeight.w900),
+                      child: GameSectionTitle(
+                        title: 'Settings',
+                        subtitle: 'Coming soon',
+                        icon: Icons.settings_rounded,
                       ),
                     ),
                     GameBadge(label: 'DEV'),
@@ -188,6 +183,25 @@ class _FloatingRoyalCardState extends State<_FloatingRoyalCard>
         width: 132,
         height: 112,
         alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [GameColors.candle, GameColors.palaceGold],
+          ),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: GameColors.palaceGold.withValues(alpha: 0.38),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+            const BoxShadow(
+              color: Color(0x55351A10),
+              blurRadius: 0,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
         child: const Icon(
           Icons.workspace_premium_rounded,
           size: 58,
