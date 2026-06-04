@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../config/polish_config.dart';
+
 enum GameParticleStyle { dust, embers, sparkles, fog, confetti }
 
 enum GameMood { normal, myTurn, correct, wrong, lowTimer, endGameVote }
@@ -26,11 +28,12 @@ class GameParticleOverlay extends StatefulWidget {
 
 class _GameParticleOverlayState extends State<GameParticleOverlay>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  AnimationController? _controller;
 
   @override
   void initState() {
     super.initState();
+    if (disablePolishForDebug) return;
     _controller = AnimationController(vsync: this, duration: widget.duration)
       ..repeat();
   }
@@ -38,28 +41,32 @@ class _GameParticleOverlayState extends State<GameParticleOverlay>
   @override
   void didUpdateWidget(covariant GameParticleOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (disablePolishForDebug) return;
     if (oldWidget.duration != widget.duration) {
-      _controller.duration = widget.duration;
-      _controller.repeat();
+      _controller?.duration = widget.duration;
+      _controller?.repeat();
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (disablePolishForDebug) return const SizedBox.shrink();
+    final controller = _controller!;
+
     return IgnorePointer(
       child: RepaintBoundary(
         child: AnimatedBuilder(
-          animation: _controller,
+          animation: controller,
           builder: (context, _) => CustomPaint(
             size: MediaQuery.sizeOf(context),
             painter: _ParticlePainter(
-              progress: _controller.value,
+              progress: controller.value,
               style: widget.style,
               intensity: widget.intensity.clamp(0.0, 2.0),
               color: widget.color,
@@ -79,6 +86,7 @@ class GameMoodOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (disablePolishForDebug) return const SizedBox.shrink();
     if (!enabled) return const SizedBox.shrink();
     final config = _moodConfig(mood);
     return Positioned.fill(

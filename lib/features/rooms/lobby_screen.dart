@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../config/presence_config.dart';
+import '../../config/polish_config.dart';
 import '../chat/room_chat_panel.dart';
 import '../game/game_screen.dart';
 import '../game/game_service.dart';
@@ -37,6 +41,7 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
 
   bool _isStarting = false;
   bool _navigating = false;
+  bool _leaveInProgress = false;
   String? _error;
   DateTime? _lastAfkCheckAt;
   String? _lastAfkToastMessage;
@@ -44,20 +49,25 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _gameService.markCurrentPlayerOnline(widget.roomId);
+    if (enableLifecyclePresenceSystem) {
+      WidgetsBinding.instance.addObserver(this);
+      _gameService.markCurrentPlayerOnline(widget.roomId);
+    }
     AudioService.instance.playLobbyMusic();
   }
 
   @override
   void dispose() {
     AudioService.instance.stopLobbyMusic();
-    WidgetsBinding.instance.removeObserver(this);
+    if (enableLifecyclePresenceSystem) {
+      WidgetsBinding.instance.removeObserver(this);
+    }
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!enableLifecyclePresenceSystem) return;
     if (state == AppLifecycleState.resumed) {
       _gameService.markCurrentPlayerOnline(widget.roomId);
     } else if (state == AppLifecycleState.inactive ||
@@ -114,26 +124,34 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _leaveRoom() async {
+  void _leaveRoom() {
+    debugPrint('LEAVE_ROOM_PRESSED');
+    if (_leaveInProgress || !mounted) return;
+    setState(() => _leaveInProgress = true);
+    _showSnackBar('You left the room.');
+    unawaited(_leaveRoomInBackground());
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => HomeScreen(username: widget.username)),
+      (route) => false,
+    );
+  }
+
+  Future<void> _leaveRoomInBackground() async {
     try {
       await _gameService.leaveRoom(widget.roomId);
-      if (!mounted) return;
-      showSuccessToast(
-        context,
-        'You left the room.',
-        icon: Icons.logout_rounded,
-      );
-      _navigateHome(
-        HomeScreen(username: widget.username),
-        'lobby leave room -> home',
-      );
-    } catch (error) {
-      if (mounted) {
-        final message = error.toString();
-        setState(() => _error = message);
-        showErrorToast(context, message);
-      }
+      await _clearCurrentActiveRoom(exitReason: 'left');
+    } catch (error, stackTrace) {
+      debugPrint('LEAVE ROOM FAILED: $error');
+      debugPrintStack(stackTrace: stackTrace);
     }
+  }
+
+  void _showSnackBar(String message) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _scheduleReturnHome(String message) {
@@ -141,14 +159,9 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
     _navigating = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid != null) {
-        await _consistencyService.clearActiveRoom(
-          uid,
-          exitReason: message == 'Room has been closed.' ? 'game_closed' : null,
-          roomId: widget.roomId,
-        );
-      }
+      await _clearCurrentActiveRoom(
+        exitReason: message == 'Room has been closed.' ? 'game_closed' : null,
+      );
       if (!mounted) return;
       safeNavigateReplacement(
         context,
@@ -159,10 +172,14 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
     });
   }
 
-  void _navigateHome(Widget page, String reason) {
-    if (_navigating || !mounted) return;
-    _navigating = true;
-    safeNavigateReplacement(context, page, reason, clearStack: true);
+  Future<void> _clearCurrentActiveRoom({String? exitReason}) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    await _consistencyService.clearActiveRoom(
+      uid,
+      exitReason: exitReason,
+      roomId: widget.roomId,
+    );
   }
 
   void _navigateToGame() {
@@ -196,6 +213,7 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
   }
 
   void _scheduleAfkCheck() {
+    if (!enableReconnectSystem) return;
     final now = DateTime.now();
     if (_lastAfkCheckAt != null &&
         now.difference(_lastAfkCheckAt!) < const Duration(seconds: 20)) {
@@ -218,7 +236,7 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
               return _LobbyShell(
                 child: _CenteredMessage(
                   message: 'Could not load room. Check your connection',
-                  onBack: () => Navigator.of(context).pop(),
+                  onBack: _goHomeNow,
                 ),
               );
             }
@@ -235,7 +253,7 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
               return _LobbyShell(
                 child: _CenteredMessage(
                   message: 'Room not found',
-                  onBack: () => Navigator.of(context).pop(),
+                  onBack: _goHomeNow,
                 ),
               );
             }
@@ -247,10 +265,7 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
               );
             }
 
-            if (room.status == 'round_active' ||
-                room.status == 'round_complete' ||
-                room.status == 'waiting_next_round' ||
-                room.status == 'game_complete') {
+            if (room.status == 'round_active') {
               _navigateToGame();
             }
 
@@ -261,7 +276,7 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
                   return _LobbyShell(
                     child: _CenteredMessage(
                       message: 'Could not load players. Check your connection',
-                      onBack: () => Navigator.of(context).pop(),
+                      onBack: _goHomeNow,
                     ),
                   );
                 }
@@ -403,9 +418,11 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
                           )
                         else
                           TextButton.icon(
-                            onPressed: _leaveRoom,
+                            onPressed: _leaveInProgress ? null : _leaveRoom,
                             icon: const Icon(Icons.exit_to_app_rounded),
-                            label: const Text('Leave Room'),
+                            label: Text(
+                              _leaveInProgress ? 'Leaving...' : 'Leave Room',
+                            ),
                           ),
                         const SizedBox(height: 14),
                         RoomChatPanel(roomId: widget.roomId),
@@ -418,6 +435,23 @@ class _LobbyScreenState extends State<LobbyScreen> with WidgetsBindingObserver {
           },
         ),
       ),
+    );
+  }
+
+  void _goHomeNow() {
+    unawaited(
+      _clearCurrentActiveRoom().catchError((
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        debugPrint('CLEAR ACTIVE ROOM FAILED: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }),
+    );
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => HomeScreen(username: widget.username)),
+      (route) => false,
     );
   }
 }
@@ -739,11 +773,12 @@ class _GlowingHostBadge extends StatefulWidget {
 
 class _GlowingHostBadgeState extends State<_GlowingHostBadge>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  AnimationController? _controller;
 
   @override
   void initState() {
     super.initState();
+    if (disablePolishForDebug) return;
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -752,14 +787,25 @@ class _GlowingHostBadgeState extends State<_GlowingHostBadge>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (disablePolishForDebug) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        child: const Text(
+          'Host',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+      );
+    }
+
+    final controller = _controller!;
     return AnimatedBuilder(
-      animation: _controller,
+      animation: controller,
       builder: (context, _) {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -770,7 +816,7 @@ class _GlowingHostBadgeState extends State<_GlowingHostBadge>
               BoxShadow(
                 color: const Color(
                   0xFFE7B946,
-                ).withValues(alpha: 0.25 + (_controller.value * 0.35)),
+                ).withValues(alpha: 0.25 + (controller.value * 0.35)),
                 blurRadius: 12,
               ),
             ],
@@ -807,11 +853,12 @@ class _HostStartAction extends StatefulWidget {
 
 class _HostStartActionState extends State<_HostStartAction>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  AnimationController? _controller;
 
   @override
   void initState() {
     super.initState();
+    if (disablePolishForDebug) return;
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -820,17 +867,27 @@ class _HostStartActionState extends State<_HostStartAction>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (disablePolishForDebug) {
+      return RoyalButton(
+        label: widget.alreadyStarted ? 'Game Started' : 'Start Game',
+        icon: Icons.play_arrow_rounded,
+        isLoading: widget.isLoading,
+        onPressed: widget.canStart ? widget.onStart : null,
+      );
+    }
+
+    final controller = _controller!;
     return AnimatedBuilder(
-      animation: _controller,
+      animation: controller,
       builder: (context, child) {
         return Transform.scale(
-          scale: widget.canStart ? 1 + (_controller.value * 0.025) : 1,
+          scale: widget.canStart ? 1 + (controller.value * 0.025) : 1,
           child: RoyalButton(
             label: widget.alreadyStarted ? 'Game Started' : 'Start Game',
             icon: Icons.play_arrow_rounded,

@@ -33,6 +33,10 @@ class RoomConsistencyService {
       _firestore.collection('users');
 
   Future<ActiveRoomResolution> reconnectToActiveRoomIfAny() async {
+    if (!enableReconnectRouting) {
+      return const ActiveRoomResolution(target: ActiveRoomTarget.none);
+    }
+
     final user = _firebaseAuth.currentUser;
     if (user == null) {
       return const ActiveRoomResolution(target: ActiveRoomTarget.none);
@@ -136,6 +140,7 @@ class RoomConsistencyService {
   Future<void> syncCurrentUserPresence(String roomId) => markUserOnline(roomId);
 
   Future<void> markUserOnline(String roomId) async {
+    if (!enableLifecyclePresenceSystem) return;
     final user = _firebaseAuth.currentUser;
     if (user == null) return;
 
@@ -199,6 +204,7 @@ class RoomConsistencyService {
   }
 
   Future<void> markUserReconnecting(String roomId) async {
+    if (!enableLifecyclePresenceSystem) return;
     if (kIsWeb && relaxedWebPresenceForTesting) return;
 
     final user = _firebaseAuth.currentUser;
@@ -243,6 +249,7 @@ class RoomConsistencyService {
   }
 
   Future<void> cleanupExpiredReconnects(String roomId) async {
+    if (!enableReconnectSystem) return;
     final roomRef = _rooms.doc(roomId);
     final playersSnapshot = await roomRef.collection('players').get();
     final expiredUids = <String>[];

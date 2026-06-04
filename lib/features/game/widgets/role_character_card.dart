@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../config/polish_config.dart';
 import '../../../widgets/pressable_scale.dart';
 import '../data/role_data.dart';
 
@@ -31,11 +32,12 @@ class RoleCharacterCard extends StatefulWidget {
 
 class _RoleCharacterCardState extends State<RoleCharacterCard>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  AnimationController? _controller;
 
   @override
   void initState() {
     super.initState();
+    if (disablePolishForDebug) return;
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -45,27 +47,41 @@ class _RoleCharacterCardState extends State<RoleCharacterCard>
   @override
   void didUpdateWidget(covariant RoleCharacterCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (disablePolishForDebug) return;
     if (oldWidget.role.id != widget.role.id ||
         oldWidget.reveal != widget.reveal) {
-      _controller.forward(from: 0);
+      _controller?.forward(from: 0);
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final metrics = _metricsFor(widget.size);
+    if (disablePolishForDebug) {
+      final card = _RoleCardFrame(
+        role: widget.role,
+        metrics: metrics,
+        reveal: widget.reveal,
+        showLore: widget.showLore,
+        playerUsername: widget.playerUsername,
+        glowPulse: 0,
+      );
+      if (widget.onTap == null) return card;
+      return GestureDetector(onTap: widget.onTap, child: card);
+    }
 
+    final controller = _controller!;
     return AnimatedBuilder(
-      animation: _controller,
+      animation: controller,
       builder: (context, _) {
-        final t = Curves.easeOutCubic.transform(_controller.value);
-        final float = math.sin(_controller.value * math.pi * 2) * 3;
+        final t = Curves.easeOutCubic.transform(controller.value);
+        final float = math.sin(controller.value * math.pi * 2) * 3;
         final entrance = _entranceOffset(widget.role.entranceAnimationType, t);
         final rotation = _entranceRotation(
           widget.role.entranceAnimationType,
@@ -73,7 +89,7 @@ class _RoleCharacterCardState extends State<RoleCharacterCard>
         );
         final scale = 0.88 + (t * 0.12);
         final glowPulse =
-            0.55 + (math.sin(_controller.value * math.pi * 2) * 0.18);
+            0.55 + (math.sin(controller.value * math.pi * 2) * 0.18);
 
         final card = Transform.translate(
           offset: Offset(entrance.dx, entrance.dy + float),

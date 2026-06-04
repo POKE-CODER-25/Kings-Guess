@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../config/polish_config.dart';
+
 class PressableScale extends StatefulWidget {
   const PressableScale({
     super.key,
@@ -33,6 +35,13 @@ class _PressableScaleState extends State<PressableScale> {
 
   @override
   Widget build(BuildContext context) {
+    if (disablePolishForDebug) {
+      return GestureDetector(
+        onTap: widget.enabled ? widget.onPressed : null,
+        child: widget.child,
+      );
+    }
+
     final scale = _pressed ? widget.pressedScale : 1.0;
 
     return Listener(

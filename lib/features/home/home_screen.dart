@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/game_colors.dart';
+import '../../config/polish_config.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/game_badge.dart';
 import '../../widgets/game_header.dart';
@@ -162,11 +163,12 @@ class _FloatingRoyalCard extends StatefulWidget {
 
 class _FloatingRoyalCardState extends State<_FloatingRoyalCard>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  AnimationController? _controller;
 
   @override
   void initState() {
     super.initState();
+    if (disablePolishForDebug) return;
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -175,17 +177,31 @@ class _FloatingRoyalCardState extends State<_FloatingRoyalCard>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (disablePolishForDebug) {
+      return Container(
+        width: 132,
+        height: 112,
+        alignment: Alignment.center,
+        child: const Icon(
+          Icons.workspace_premium_rounded,
+          size: 58,
+          color: GameColors.ruby,
+        ),
+      );
+    }
+
+    final controller = _controller!;
     return AnimatedBuilder(
-      animation: _controller,
+      animation: controller,
       builder: (context, _) {
         return Transform.translate(
-          offset: Offset(0, -6 * _controller.value),
+          offset: Offset(0, -6 * controller.value),
           child: Container(
             width: 132,
             height: 112,

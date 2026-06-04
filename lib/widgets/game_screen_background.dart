@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../config/polish_config.dart';
 import '../core/theme/game_colors.dart';
 import '../core/theme/game_gradients.dart';
 
@@ -19,6 +20,9 @@ class GameScreenBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (disablePolishForDebug) {
+      return SafeArea(child: child);
+    }
     return Stack(
       children: [
         DecoratedBox(

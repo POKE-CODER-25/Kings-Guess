@@ -211,6 +211,7 @@ class GameService {
   }
 
   Future<void> markCurrentPlayerOnline(String roomId) async {
+    if (!enableLifecyclePresenceSystem) return;
     await RoomConsistencyService(
       firestore: _firestore,
       firebaseAuth: _firebaseAuth,
@@ -218,6 +219,7 @@ class GameService {
   }
 
   Future<void> markCurrentPlayerDisconnected(String roomId) async {
+    if (!enableLifecyclePresenceSystem) return;
     if (kIsWeb && relaxedWebPresenceForTesting) return;
     await RoomConsistencyService(
       firestore: _firestore,
@@ -863,6 +865,12 @@ class GameService {
         final removedNow = removedUidSet.contains(snapshot.id);
         return !wasAlreadyRemoved && !removedNow;
       }).toList();
+      final hostLeft = playerSnapshots.any((snapshot) {
+        final data = snapshot.data();
+        if (data == null) return false;
+        return removedUidSet.contains(snapshot.id) &&
+            (data['isHost'] as bool? ?? false);
+      });
       final removedAfterRemoval =
           playerSnapshots.length - activeAfterRemoval.length;
       final currentStatus = room['status'] as String? ?? 'waiting';
@@ -875,7 +883,17 @@ class GameService {
         'updatedAt': now,
       };
 
-      if (isRoundActive) {
+      if (hostLeft) {
+        roomUpdates.addAll({
+          'currentRoundStatus': 'cancelled',
+          'currentGuesserUid': null,
+          'currentTargetRole': null,
+          'currentRoleIndex': 0,
+          'turnStartedAt': null,
+          'turnEndsAt': null,
+          ..._gameCompleteFields('Host left the room.'),
+        });
+      } else if (isRoundActive) {
         for (final playerSnapshot in playerSnapshots) {
           final data = playerSnapshot.data();
           if (data == null) continue;

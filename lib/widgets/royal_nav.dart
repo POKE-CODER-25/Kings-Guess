@@ -8,48 +8,33 @@ void safeNavigateReplacement(
 }) {
   if (!context.mounted) return;
   debugPrint('NAVIGATE: $reason');
+  final navigator = Navigator.maybeOf(context);
+  if (navigator == null) return;
+  if (clearStack) {
+    navigator.pushAndRemoveUntil(royalRoute(page), (_) => false);
+  } else {
+    navigator.pushReplacement(royalRoute(page));
+  }
+}
+
+Future<void> safeManualGoHome(
+  BuildContext context, {
+  required Widget homeScreen,
+  String reason = '',
+}) async {
+  await Future<void>.delayed(Duration.zero);
+  if (!context.mounted) return;
+
   WidgetsBinding.instance.addPostFrameCallback((_) {
     if (!context.mounted) return;
-    final navigator = Navigator.maybeOf(context);
-    if (navigator == null) return;
-    if (clearStack) {
-      navigator.pushAndRemoveUntil(royalRoute(page), (_) => false);
-    } else {
-      navigator.pushReplacement(royalRoute(page));
-    }
+    debugPrint('NAVIGATE: $reason');
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => homeScreen),
+      (route) => false,
+    );
   });
 }
 
 Route<T> royalRoute<T>(Widget screen) {
-  return PageRouteBuilder<T>(
-    pageBuilder: (_, _, _) => screen,
-    transitionDuration: const Duration(milliseconds: 420),
-    reverseTransitionDuration: const Duration(milliseconds: 260),
-    transitionsBuilder: (_, animation, secondaryAnimation, child) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeOutCubic,
-      );
-      final outgoing = CurvedAnimation(
-        parent: secondaryAnimation,
-        curve: Curves.easeInCubic,
-      );
-      return FadeTransition(
-        opacity: Tween(begin: 0.0, end: 1.0).animate(curved),
-        child: ScaleTransition(
-          scale: Tween(begin: 0.96, end: 1.0).animate(curved),
-          child: SlideTransition(
-            position: Tween(
-              begin: const Offset(0, 0.055),
-              end: Offset.zero,
-            ).animate(curved),
-            child: Transform.scale(
-              scale: 1 - (outgoing.value * 0.025),
-              child: child,
-            ),
-          ),
-        ),
-      );
-    },
-  );
+  return MaterialPageRoute<T>(builder: (_) => screen);
 }

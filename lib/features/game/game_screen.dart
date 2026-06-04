@@ -5,12 +5,13 @@ import 'dart:ui' as ui;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../config/polish_config.dart';
+import '../../config/presence_config.dart';
 import '../chat/room_chat_panel.dart';
 import '../home/home_screen.dart';
 import '../../services/audio_service.dart';
 import '../../services/room_consistency_service.dart';
 import '../../widgets/game_button.dart';
-import '../../widgets/game_modal.dart';
 import '../../widgets/game_particle_overlay.dart';
 import '../../widgets/game_panel.dart';
 import '../../widgets/royal_background.dart';
@@ -43,6 +44,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   DateTime? _lastAfkCheckAt;
   bool _isGuessing = false;
   bool _navigating = false;
+  bool _leaveInProgress = false;
+  bool _endGameRequestInProgress = false;
   String? _error;
   String? _lastActionToastMessage;
   String? _lastAfkToastMessage;
@@ -62,9 +65,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    if (enableLifecyclePresenceSystem) {
+      WidgetsBinding.instance.addObserver(this);
+      _gameService.markCurrentPlayerOnline(widget.roomId);
+    }
     AudioService.instance.stopLobbyMusic();
-    _gameService.markCurrentPlayerOnline(widget.roomId);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _playTimerWarningIfNeeded();
       _autoGuessIfExpired();
@@ -74,12 +79,15 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     _timer?.cancel();
-    WidgetsBinding.instance.removeObserver(this);
+    if (enableLifecyclePresenceSystem) {
+      WidgetsBinding.instance.removeObserver(this);
+    }
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!enableLifecyclePresenceSystem) return;
     if (state == AppLifecycleState.resumed) {
       _gameService.markCurrentPlayerOnline(widget.roomId);
     } else if (state == AppLifecycleState.inactive ||
@@ -90,6 +98,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _guess(String guessedUid) async {
+    final guesserUid = FirebaseAuth.instance.currentUser?.uid;
+    debugPrint('GUESS ATTEMPT: $guesserUid -> $guessedUid');
     setState(() {
       _isGuessing = true;
       _error = null;
@@ -100,26 +110,39 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
         roomId: widget.roomId,
         guessedUid: guessedUid,
       );
+      debugPrint('GUESS SUCCESS');
     } on GameException catch (error) {
       if (!mounted) return;
       setState(() => _error = error.message);
-      showErrorToast(context, error.message);
+      _showGuessFailure(error.message);
     } on FirebaseException catch (error) {
       if (!mounted) return;
       final message = _friendlyFirebaseError(error);
       setState(() => _error = message);
-      showErrorToast(context, message);
+      _showGuessFailure(message);
     } catch (error) {
       if (!mounted) return;
       final message = error.toString();
       setState(() => _error = message);
-      showErrorToast(context, message);
+      _showGuessFailure(message);
     } finally {
       if (mounted) setState(() => _isGuessing = false);
     }
   }
 
   Future<void> _confirmGuess(GameRoom room, GamePlayer player) async {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    final blockReason = _guessBlockReason(room, player, currentUid);
+    if (blockReason != null) {
+      _showGuessFailure(blockReason);
+      return;
+    }
+
+    if (disablePolishForDebug) {
+      await _guess(player.uid);
+      return;
+    }
+
     final targetRole = room.currentTargetRole.isEmpty
         ? 'the target'
         : room.currentTargetRole;
@@ -136,6 +159,26 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     await Future<void>.delayed(const Duration(milliseconds: 460));
     if (!mounted) return;
     await _guess(player.uid);
+  }
+
+  void _showGuessFailure(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String? _guessBlockReason(GameRoom room, GamePlayer player, String? uid) {
+    if (room.status != 'round_active') return 'Round is not active';
+    if (uid == null || uid != room.currentGuesserUid) {
+      return 'It is not your turn';
+    }
+    if (player.uid == uid) return 'You cannot guess yourself';
+    if (player.isRemoved) return 'That player was removed';
+    if (player.isRoundComplete) return 'That player completed this round';
+    return null;
   }
 
   Future<void> _startNextRound() async {
@@ -177,43 +220,28 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _leaveRoom(String? username) async {
-    try {
-      await _gameService.leaveRoom(widget.roomId);
-      if (!mounted) return;
-      final homeUsername = username ?? 'player';
-      showSuccessToast(
-        context,
-        'You left the room.',
-        icon: Icons.logout_rounded,
-      );
-      _navigateHome(
-        HomeScreen(username: homeUsername),
-        'game leave room -> home',
-      );
-    } catch (error) {
-      if (mounted) {
-        final message = error.toString();
-        setState(() => _error = message);
-        showErrorToast(context, message);
-      }
-    }
+  void _leaveRoom(String? username) {
+    debugPrint('LEAVE_ROOM_PRESSED');
+    if (_leaveInProgress || !mounted) return;
+    setState(() => _leaveInProgress = true);
+    _showActionSnackBar('You left the room.');
+    unawaited(_leaveRoomInBackground());
+    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => HomeScreen(username: username ?? 'player'),
+      ),
+      (route) => false,
+    );
   }
 
-  Future<void> _backHomeFromFinal(String? username) async {
-    if (_navigating) return;
-    _navigating = true;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      await _consistencyService.clearActiveRoom(uid, roomId: widget.roomId);
+  Future<void> _leaveRoomInBackground() async {
+    try {
+      await _gameService.leaveRoom(widget.roomId);
+      await _clearCurrentActiveRoom(exitReason: 'left');
+    } catch (error, stackTrace) {
+      debugPrint('LEAVE ROOM FAILED: $error');
+      debugPrintStack(stackTrace: stackTrace);
     }
-    if (!mounted) return;
-    safeNavigateReplacement(
-      context,
-      HomeScreen(username: username ?? 'player'),
-      'game final results -> home',
-      clearStack: true,
-    );
   }
 
   void _scheduleReturnHome(String message, String? username) {
@@ -221,14 +249,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     _navigating = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid != null) {
-        await _consistencyService.clearActiveRoom(
-          uid,
-          exitReason: message == 'Room has been closed.' ? 'game_closed' : null,
-          roomId: widget.roomId,
-        );
-      }
+      await _clearCurrentActiveRoom(
+        exitReason: message == 'Room has been closed.' ? 'game_closed' : null,
+      );
       if (!mounted) return;
       safeNavigateReplacement(
         context,
@@ -239,43 +262,66 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     });
   }
 
-  void _navigateHome(Widget page, String reason) {
-    if (_navigating || !mounted) return;
-    _navigating = true;
-    safeNavigateReplacement(context, page, reason, clearStack: true);
+  Future<void> _clearCurrentActiveRoom({String? exitReason}) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    await _consistencyService.clearActiveRoom(
+      uid,
+      exitReason: exitReason,
+      roomId: widget.roomId,
+    );
   }
 
   Future<void> _requestEndGameVote() async {
-    final shouldRequest = await showDialog<bool>(
-      context: context,
-      builder: (context) => const GameModal(
-        title: 'End The Court?',
-        message: 'Request to end the game for everyone?',
-        confirmLabel: 'Start Vote',
-        cancelLabel: 'Cancel',
-      ),
-    );
-    if (!mounted) return;
-    if (shouldRequest != true) return;
-
-    setState(() => _error = null);
+    debugPrint('END GAME REQUEST CLICKED');
+    if (_endGameRequestInProgress || _leaveInProgress || !mounted) return;
+    setState(() {
+      _endGameRequestInProgress = true;
+      _error = null;
+    });
     try {
+      debugPrint('END GAME REQUEST STARTED');
+      await Future<void>.delayed(Duration.zero);
+      if (!mounted) return;
       await _gameService.requestEndGameVote(widget.roomId);
-    } on GameException catch (error) {
+      debugPrint('END GAME REQUEST FINISHED');
+      if (!mounted) return;
+      _showActionSnackBar('End game vote requested.');
+    } on GameException catch (error, stackTrace) {
+      debugPrint('END GAME REQUEST FAILED: ${error.message}');
+      debugPrintStack(stackTrace: stackTrace);
       if (!mounted) return;
       setState(() => _error = error.message);
-      showErrorToast(context, error.message);
-    } on FirebaseException catch (error) {
+      _showActionSnackBar(error.message);
+    } on FirebaseException catch (error, stackTrace) {
+      debugPrint('END GAME REQUEST FAILED: $error');
+      debugPrintStack(stackTrace: stackTrace);
       if (!mounted) return;
       final message = _friendlyFirebaseError(error);
       setState(() => _error = message);
-      showErrorToast(context, message);
-    } catch (error) {
+      _showActionSnackBar(message);
+    } catch (error, stackTrace) {
+      debugPrint('END GAME REQUEST FAILED: $error');
+      debugPrintStack(stackTrace: stackTrace);
       if (!mounted) return;
       final message = error.toString();
       setState(() => _error = message);
-      showErrorToast(context, message);
+      _showActionSnackBar(message);
+    } finally {
+      if (mounted) {
+        setState(() => _endGameRequestInProgress = false);
+      } else {
+        _endGameRequestInProgress = false;
+      }
     }
+  }
+
+  void _showActionSnackBar(String message) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return;
+    messenger
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _submitEndGameVote(String vote) async {
@@ -300,6 +346,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   }
 
   void _scheduleAfkCheck() {
+    if (!enableReconnectSystem) return;
     final now = DateTime.now();
     if (_lastAfkCheckAt != null &&
         now.difference(_lastAfkCheckAt!) < const Duration(seconds: 20)) {
@@ -468,6 +515,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   }
 
   void _triggerGameEffect(_GameEffectKind kind, {String? scorePopupText}) {
+    if (disablePolishForDebug) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {
@@ -494,6 +542,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   }
 
   bool _shouldShowRoleReveal(GameRoom room, GamePlayer? player) {
+    if (disablePolishForDebug) return false;
     final key = _roleRevealKey(room, player);
     if (key == null) return false;
     return key != _dismissedRoleRevealKey;
@@ -579,10 +628,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                     _showGameEventToasts(room, players);
 
                     if (me?.isRemoved == true) {
-                      return _GameShell(
-                        child: _MessageCard(
-                          message: _removedPlayerMessage(me?.removalReason),
-                        ),
+                      final message = _removedPlayerMessage(me?.removalReason);
+                      _scheduleReturnHome(message, me?.username);
+                      return const _GameShell(
+                        child: Center(child: CircularProgressIndicator()),
                       );
                     }
 
@@ -599,8 +648,6 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                               room: room,
                               players: players,
                               error: _error,
-                              onBackHome: () =>
-                                  _backHomeFromFinal(me?.username),
                             ),
                           );
                         }
@@ -628,10 +675,14 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                     _confirmGuess(room, player),
                                 onStartNextRound: _startNextRound,
                                 onCheckAfkPlayers: _checkAfkPlayers,
+                                isLeaving: _leaveInProgress,
+                                isEndGameRequesting: _endGameRequestInProgress,
                                 onRequestEndGameVote:
                                     me != null &&
                                         !me.isRemoved &&
-                                        !room.endGameVoteActive
+                                        !room.endGameVoteActive &&
+                                        !_endGameRequestInProgress &&
+                                        !_leaveInProgress
                                     ? _requestEndGameVote
                                     : null,
                                 onAcceptVote: () =>
@@ -701,11 +752,12 @@ class _AccusationDramaDialog extends StatefulWidget {
 
 class _AccusationDramaDialogState extends State<_AccusationDramaDialog>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  AnimationController? _controller;
 
   @override
   void initState() {
     super.initState();
+    if (disablePolishForDebug) return;
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 620),
@@ -714,18 +766,44 @@ class _AccusationDramaDialogState extends State<_AccusationDramaDialog>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (disablePolishForDebug) {
+      return Dialog.fullscreen(
+        backgroundColor: Colors.black54,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _AccusedSpotlightCard(
+                  player: widget.player,
+                  targetRole: widget.targetRole,
+                ),
+                const SizedBox(height: 18),
+                _AccusationActionBar(
+                  player: widget.player,
+                  targetRole: widget.targetRole,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final controller = _controller!;
     return Dialog.fullscreen(
       backgroundColor: Colors.transparent,
       child: AnimatedBuilder(
-        animation: _controller,
+        animation: controller,
         builder: (context, _) {
-          final t = Curves.easeOutCubic.transform(_controller.value);
+          final t = Curves.easeOutCubic.transform(controller.value);
           return BackdropFilter(
             filter: ui.ImageFilter.blur(sigmaX: 4 * t, sigmaY: 4 * t),
             child: Stack(
@@ -1168,6 +1246,8 @@ class _CinematicGameView extends StatefulWidget {
     required this.onGuessPlayer,
     required this.onStartNextRound,
     required this.onCheckAfkPlayers,
+    required this.isLeaving,
+    required this.isEndGameRequesting,
     required this.onRequestEndGameVote,
     required this.onAcceptVote,
     required this.onDeclineVote,
@@ -1188,6 +1268,8 @@ class _CinematicGameView extends StatefulWidget {
   final ValueChanged<GamePlayer> onGuessPlayer;
   final VoidCallback onStartNextRound;
   final VoidCallback onCheckAfkPlayers;
+  final bool isLeaving;
+  final bool isEndGameRequesting;
   final VoidCallback? onRequestEndGameVote;
   final VoidCallback onAcceptVote;
   final VoidCallback onDeclineVote;
@@ -1238,6 +1320,8 @@ class _CinematicGameViewState extends State<_CinematicGameView> {
                 room: room,
                 isHost: widget.isHost,
                 canRequestEndGame: widget.onRequestEndGameVote != null,
+                isEndGameRequesting: widget.isEndGameRequesting,
+                isLeaving: widget.isLeaving,
                 onRequestEndGameVote: widget.onRequestEndGameVote,
                 onCheckAfkPlayers: widget.onCheckAfkPlayers,
                 onLeaveRoom: widget.onLeaveRoom,
@@ -1535,6 +1619,12 @@ class _SlideDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (disablePolishForDebug) {
+      return open
+          ? Padding(padding: const EdgeInsets.only(bottom: 12), child: child)
+          : const SizedBox.shrink();
+    }
+
     return AnimatedSize(
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
@@ -1674,6 +1764,39 @@ class _TurnSpotlightBanner extends StatelessWidget {
         ? 'Your Turn: Find the $target'
         : '@${guesser?.username ?? 'the court'} is searching for the $target...';
 
+    final banner = Container(
+      key: ValueKey(text),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isCurrentGuesser
+              ? const [Color(0xFFE5B540), Color(0xFFFFE6A0)]
+              : const [Color(0xFF23325F), Color(0xFF6B2B4D)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFFF4D9), width: 1.7),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x55000000),
+            blurRadius: 16,
+            offset: Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: isCurrentGuesser ? const Color(0xFF351A10) : Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+
+    if (disablePolishForDebug) return banner;
+
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 320),
       transitionBuilder: (child, animation) => FadeTransition(
@@ -1686,36 +1809,7 @@ class _TurnSpotlightBanner extends StatelessWidget {
           child: child,
         ),
       ),
-      child: Container(
-        key: ValueKey(text),
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isCurrentGuesser
-                ? const [Color(0xFFE5B540), Color(0xFFFFE6A0)]
-                : const [Color(0xFF23325F), Color(0xFF6B2B4D)],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFFFF4D9), width: 1.7),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x55000000),
-              blurRadius: 16,
-              offset: Offset(0, 7),
-            ),
-          ],
-        ),
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: isCurrentGuesser ? const Color(0xFF351A10) : Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ),
+      child: banner,
     );
   }
 }
@@ -1760,6 +1854,48 @@ class _PressureTimerState extends State<_PressureTimer> {
     final minutes = (secondsLeft ~/ 60).toString();
     final seconds = (secondsLeft % 60).toString().padLeft(2, '0');
 
+    final timerFace = SizedBox(
+      width: 112,
+      height: 112,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CircularProgressIndicator(
+            value: progress,
+            strokeWidth: 10,
+            strokeCap: StrokeCap.round,
+            backgroundColor: const Color(0xFFFFE6A0),
+            color: color,
+          ),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$minutes:$seconds',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: danger ? const Color(0xFFB83A4B) : null,
+                  ),
+                ),
+                if (warning)
+                  Text(
+                    danger ? 'DANGER' : 'HURRY',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (disablePolishForDebug) return timerFace;
+
     return TweenAnimationBuilder<double>(
       key: ValueKey(warning ? secondsLeft : 0),
       tween: Tween(begin: 1, end: warning ? 1.08 : 1),
@@ -1767,50 +1903,7 @@ class _PressureTimerState extends State<_PressureTimer> {
       curve: Curves.easeInOut,
       builder: (context, scale, child) =>
           Transform.scale(scale: warning ? scale : 1, child: child),
-      child: SizedBox(
-        width: 112,
-        height: 112,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 1, end: progress),
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeOut,
-              builder: (context, value, _) => CircularProgressIndicator(
-                value: value,
-                strokeWidth: 10,
-                strokeCap: StrokeCap.round,
-                backgroundColor: const Color(0xFFFFE6A0),
-                color: color,
-              ),
-            ),
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '$minutes:$seconds',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: danger ? const Color(0xFFB83A4B) : null,
-                    ),
-                  ),
-                  if (warning)
-                    Text(
-                      danger ? 'DANGER' : 'HURRY',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: timerFace,
     );
   }
 }
@@ -1901,6 +1994,80 @@ class _SuspectCardState extends State<_SuspectCard> {
   @override
   Widget build(BuildContext context) {
     final focused = widget.enabled && _pressed;
+    if (disablePolishForDebug) {
+      return Opacity(
+        opacity: widget.enabled ? 1 : 0.72,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.enabled ? widget.onTap : null,
+          child: Container(
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFF4D9), Color(0xFFFFDFA0)],
+              ),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: widget.enabled
+                    ? const Color(0xFFE5B540)
+                    : const Color(0xFFE7C879),
+                width: 2,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 64,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF23325F),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: const Color(0xFFFFE6A0),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Text('?', style: TextStyle(fontSize: 30)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '@${widget.player.username}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.enabled
+                            ? 'Accuse as ${widget.targetRole.isEmpty ? 'target' : widget.targetRole}'
+                            : widget.player.isReconnecting
+                            ? 'Reconnecting...'
+                            : widget.player.isOnline
+                            ? 'Mysterious court card'
+                            : 'Disconnected',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ),
+                if (widget.enabled) const Icon(Icons.gavel_rounded),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Opacity(
       opacity: widget.enabled ? 1 : 0.72,
       child: Listener(
@@ -2152,10 +2319,8 @@ class _RoyalCourtDrawer extends StatelessWidget {
               ],
             ),
           ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 240),
-            curve: Curves.easeOutCubic,
-            child: open
+          if (disablePolishForDebug)
+            open
                 ? Padding(
                     padding: const EdgeInsets.only(top: 12),
                     child: Column(
@@ -2165,8 +2330,23 @@ class _RoyalCourtDrawer extends StatelessWidget {
                       ],
                     ),
                   )
-                : const SizedBox.shrink(),
-          ),
+                : const SizedBox.shrink()
+          else
+            AnimatedSize(
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic,
+              child: open
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Column(
+                        children: [
+                          for (final player in completedPlayers)
+                            _CourtRow(player: player),
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
         ],
       ),
     );
@@ -2249,6 +2429,8 @@ class _GameMenuDrawer extends StatelessWidget {
     required this.room,
     required this.isHost,
     required this.canRequestEndGame,
+    required this.isEndGameRequesting,
+    required this.isLeaving,
     required this.onRequestEndGameVote,
     required this.onCheckAfkPlayers,
     required this.onLeaveRoom,
@@ -2257,6 +2439,8 @@ class _GameMenuDrawer extends StatelessWidget {
   final GameRoom room;
   final bool isHost;
   final bool canRequestEndGame;
+  final bool isEndGameRequesting;
+  final bool isLeaving;
   final VoidCallback? onRequestEndGameVote;
   final VoidCallback onCheckAfkPlayers;
   final VoidCallback onLeaveRoom;
@@ -2270,10 +2454,12 @@ class _GameMenuDrawer extends StatelessWidget {
           _GameSummary(room: room),
           const SizedBox(height: 12),
           GameButton(
-            label: 'Request End Game',
+            label: isEndGameRequesting ? 'Requesting...' : 'Request End Game',
             icon: Icons.flag_rounded,
             style: GameButtonStyle.secondary,
-            onPressed: canRequestEndGame ? onRequestEndGameVote : null,
+            onPressed: canRequestEndGame && !isEndGameRequesting && !isLeaving
+                ? onRequestEndGameVote
+                : null,
           ),
           if (isHost) ...[
             const SizedBox(height: 10),
@@ -2286,10 +2472,15 @@ class _GameMenuDrawer extends StatelessWidget {
           ],
           const SizedBox(height: 10),
           GameButton(
-            label: 'Leave Room',
+            label: isLeaving ? 'Leaving...' : 'Leave Room',
             icon: Icons.exit_to_app_rounded,
             style: GameButtonStyle.danger,
-            onPressed: onLeaveRoom,
+            onPressed: isLeaving
+                ? null
+                : () {
+                    debugPrint('IN_GAME_MENU_LEAVE_ROOM_PRESSED');
+                    onLeaveRoom();
+                  },
           ),
         ],
       ),
@@ -2309,35 +2500,38 @@ class _GameEffectOverlay extends StatefulWidget {
 
 class _GameEffectOverlayState extends State<_GameEffectOverlay>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  AnimationController? _controller;
 
   @override
   void initState() {
     super.initState();
+    if (disablePolishForDebug) return;
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    if (widget.kind != null) _controller.forward();
+    if (widget.kind != null) _controller?.forward();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (disablePolishForDebug) return const SizedBox.shrink();
     final kind = widget.kind;
     if (kind == null) return const SizedBox.shrink();
+    final controller = _controller!;
 
     return Positioned.fill(
       child: IgnorePointer(
         child: AnimatedBuilder(
-          animation: _controller,
+          animation: controller,
           builder: (context, _) {
-            final t = _controller.value;
+            final t = controller.value;
             final fade = math.sin(t * math.pi).clamp(0.0, 1.0);
             final isWrong = kind == _GameEffectKind.wrong;
             final isRoundComplete = kind == _GameEffectKind.roundComplete;
@@ -2524,6 +2718,7 @@ class _SoftConfettiGlow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (disablePolishForDebug) return const SizedBox.shrink();
     final size = MediaQuery.sizeOf(context);
 
     return Stack(
@@ -2869,21 +3064,30 @@ class _ScoreRow extends StatelessWidget {
               ),
             ),
           ),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            transitionBuilder: (child, animation) => ScaleTransition(
-              scale: animation,
-              child: FadeTransition(opacity: animation, child: child),
-            ),
-            child: Text(
+          if (disablePolishForDebug)
+            Text(
               '${player.score}',
-              key: ValueKey('${player.uid}-${player.score}'),
               style: TextStyle(
                 fontWeight: FontWeight.w900,
                 color: isRemoved ? Colors.black54 : null,
               ),
+            )
+          else
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              transitionBuilder: (child, animation) => ScaleTransition(
+                scale: animation,
+                child: FadeTransition(opacity: animation, child: child),
+              ),
+              child: Text(
+                '${player.score}',
+                key: ValueKey('${player.uid}-${player.score}'),
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: isRemoved ? Colors.black54 : null,
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -2895,13 +3099,11 @@ class _FinalResultsCard extends StatelessWidget {
     required this.room,
     required this.players,
     required this.error,
-    required this.onBackHome,
   });
 
   final GameRoom room;
   final List<GamePlayer> players;
   final String? error;
-  final VoidCallback onBackHome;
 
   @override
   Widget build(BuildContext context) {
@@ -2916,14 +3118,16 @@ class _FinalResultsCard extends StatelessWidget {
       variant: GamePanelVariant.hero,
       child: Stack(
         children: [
-          const Positioned.fill(child: _SoftConfettiGlow(progress: 0.65)),
-          const Positioned.fill(
-            child: GameParticleOverlay(
-              style: GameParticleStyle.confetti,
-              intensity: 0.8,
-              duration: Duration(seconds: 5),
+          if (!disablePolishForDebug) ...[
+            const Positioned.fill(child: _SoftConfettiGlow(progress: 0.65)),
+            const Positioned.fill(
+              child: GameParticleOverlay(
+                style: GameParticleStyle.confetti,
+                intensity: 0.8,
+                duration: Duration(seconds: 5),
+              ),
             ),
-          ),
+          ],
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -3005,7 +3209,16 @@ class _FinalResultsCard extends StatelessWidget {
               RoyalButton(
                 label: 'Back To Home',
                 icon: Icons.home_rounded,
-                onPressed: onBackHome,
+                onPressed: () {
+                  debugPrint('FINAL_COURT_BACK_HOME_PRESSED');
+                  Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          HomeScreen(username: _homeUsername(players)),
+                    ),
+                    (route) => false,
+                  );
+                },
               ),
             ],
           ),
@@ -3013,6 +3226,16 @@ class _FinalResultsCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _homeUsername(List<GamePlayer> players) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  for (final player in players) {
+    if (player.uid == uid && player.username.isNotEmpty) {
+      return player.username;
+    }
+  }
+  return 'player';
 }
 
 class _Podium extends StatelessWidget {
@@ -3058,6 +3281,62 @@ class _PodiumSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (disablePolishForDebug) {
+      return Column(
+        children: [
+          Text(
+            rank == 1 ? '👑' : '🏅',
+            style: TextStyle(fontSize: rank == 1 ? 34 : 28),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            height: height,
+            width: double.infinity,
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: rank == 1
+                    ? const [Color(0xFFE5B540), Color(0xFFFFE6A0)]
+                    : const [Color(0xFFFFDFA0), Color(0xFFFFF4D9)],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFFFF4D9), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: rank == 1
+                      ? const Color(0x88E5B540)
+                      : const Color(0x33351A10),
+                  blurRadius: rank == 1 ? 22 : 12,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '#$rank',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '@${player.username}',
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                Text(
+                  '${player.score}',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: Duration(milliseconds: 520 + rank * 120),

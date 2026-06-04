@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../config/presence_config.dart';
 import '../../services/auth_service.dart';
 import '../../services/room_consistency_service.dart';
 import '../../services/user_profile_service.dart';
@@ -48,6 +49,11 @@ class AuthGate extends StatelessWidget {
 
             if (profile == null || !profile.exists || username == null) {
               return UsernameSetupScreen(user: user);
+            }
+
+            if (!enableReconnectRouting) {
+              debugPrint('RECONNECT ROUTING DISABLED: auth -> home');
+              return HomeScreen(username: username);
             }
 
             return _AuthenticatedEntry(username: username);
