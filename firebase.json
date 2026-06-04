@@ -1,0 +1,25 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "kings-guess",
+          "appId": "1:727214929253:android:f337621035c4ad663add8c",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "kings-guess",
+          "configurations": {
+            "android": "1:727214929253:android:f337621035c4ad663add8c",
+            "web": "1:727214929253:web:c79d0d35cf9c2e0a3add8c"
+          }
+        }
+      }
+    }
+  }
+}

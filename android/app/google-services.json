@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "727214929253",
+    "project_id": "kings-guess",
+    "storage_bucket": "kings-guess.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:727214929253:android:f337621035c4ad663add8c",
+        "android_client_info": {
+          "package_name": "com.example.kings_guess"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3OKrt9_6Xn_YSal8fPZ0WrokdKg-JAXg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

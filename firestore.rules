@@ -1,0 +1,63 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function roomPlayerPath(roomId) {
+      return /databases/$(database)/documents/rooms/$(roomId)/players/$(request.auth.uid);
+    }
+
+    function isRoomPlayer(roomId) {
+      return signedIn() && exists(roomPlayerPath(roomId));
+    }
+
+    function isActiveRoomPlayer(roomId) {
+      return isRoomPlayer(roomId) &&
+        get(roomPlayerPath(roomId)).data.isRemoved == false;
+    }
+
+    function isPlayerMessage(roomId) {
+      return isActiveRoomPlayer(roomId) &&
+        request.resource.data.senderUid == request.auth.uid &&
+        request.resource.data.senderUsername is string &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() > 0 &&
+        request.resource.data.message.size() <= 120 &&
+        request.resource.data.type == 'player' &&
+        request.resource.data.createdAt == request.time;
+    }
+
+    function isSystemMessage(roomId) {
+      return signedIn() &&
+        request.resource.data.senderUid == 'system' &&
+        request.resource.data.senderUsername == "King's Guess" &&
+        request.resource.data.message is string &&
+        request.resource.data.message.size() > 0 &&
+        request.resource.data.message.size() <= 120 &&
+        request.resource.data.type == 'system' &&
+        request.resource.data.createdAt == request.time;
+    }
+
+    match /rooms/{roomId} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+
+      match /messages/{messageId} {
+        allow read: if isRoomPlayer(roomId);
+        allow create: if isPlayerMessage(roomId) || isSystemMessage(roomId);
+        allow update, delete: if false;
+      }
+
+      match /players/{playerId} {
+        allow read, write: if signedIn();
+      }
+
+      match /endGameVotes/{voteId} {
+        allow read, write: if signedIn();
+      }
+    }
+  }
+}
